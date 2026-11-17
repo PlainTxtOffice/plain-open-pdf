@@ -13,10 +13,13 @@ platform machines.
 | Platform | Workflow | Runner | Checks and output |
 | --- | --- | --- | --- |
 | Windows | [CI](ci.yml), [build](windows-build.yml) | Windows | Python lint, types, tests, Markdown; Nuitka standalone and onefile artifacts |
-| Linux | [build](linux-build.yml) | Ubuntu 24.04 x86-64 | Python checks, desktop keyring and GUI tests; Nuitka standalone archive |
-| macOS | [build](macos-build.yml) | macOS | Python checks and tests; PyInstaller app bundle and archived artifacts |
+| Linux | `linux-build.yml` | Ubuntu 24.04 x86-64 | Python checks, desktop keyring and GUI tests; Nuitka standalone archive |
+| macOS | `macos-build.yml` | macOS | Python checks and tests; PyInstaller app bundle and archived artifacts |
 
-Android and iOS workflows are not present in this repository.
+The Linux and macOS workflows and platform sources stay local. They are not
+published until those platforms move from PyMuPDF to the Plain Open PDF engine
+and have been tested. Android and iOS workflows
+are not present in this repository.
 
 ## Triggers and artifacts
 
@@ -56,8 +59,6 @@ archive with `scripts/smoke_test.py`. The uploaded artifact is
 `plain-open-pdf-*-linux-x86_64.tar.gz`. Linux setup and checks are defined
 directly in the workflow; there is no Linux `scripts/ci.sh` entrypoint.
 
-See the [Linux guide](../../platform/linux/README.md).
-
 ## macOS
 
 The workflow invokes the existing script from `platform/mac_os/`:
@@ -77,13 +78,12 @@ artifact name includes the repository name and runner architecture; it does
 not claim universal-binary support. Distribution signing and notarization
 require a separate release process.
 
-See the [macOS guide](../../platform/mac_os/README.md).
-
 ## Publishing and validation
 
-The `github-repo-upload` selection includes these workflows and their platform
-sources, build scripts, and dependency configuration. The Windows installer
-project is intentionally excluded.
+The `github-repo-upload` selection includes the Windows workflows and the
+Windows sources, build scripts, and dependency configuration. The Windows
+installer project is intentionally excluded, and so are the Linux and macOS
+workflows and sources until those platforms use the Plain Open PDF engine.
 
 Validate workflow syntax with `actionlint` and review each platform's commands.
 Local checks do not establish native runtime or packaging support. The first

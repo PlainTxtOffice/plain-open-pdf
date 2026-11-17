@@ -1,6 +1,6 @@
 ---
 last_updated: 2026-11-17
-version: 0.4.3
+version: 0.4.4
 product_versions:
   windows: "1.1.0"
   linux: "0.1.0"
@@ -16,20 +16,19 @@ for opening, viewing, searching, lightly editing, printing, and saving PDF
 files, and it also accepts an optional PDF path on launch.
 
 Plain Open PDF for Windows is available as an installer and as a portable
-executable. Linux and macOS implementations exist, but no Linux or macOS
-download has been released: the first hosted Linux build and the first native
-Mac build are still pending.
+executable. This manual covers the Windows app. Linux and macOS versions are in
+development and have not been released.
 <!-- Verified from: README.md; platform/windows/pyproject.toml [project.scripts]; platform/windows/plain_open_pdf/main.py [main]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [MainWindow]; GitHub release v1.0.1 assets -->
 
 ## 2. System Requirements
 
 | Requirement | Verified Value | Notes |
 | --- | --- | --- |
-| Operating system | Windows x64 (64-bit) for the released downloads; Linux target: Ubuntu 24.04 x86-64 | No Linux or macOS download has been released. The first hosted Linux build, Linux runtime verification, and the first native Mac build are pending. |
+| Operating system | Windows x64 (64-bit) | Linux and macOS versions have not been released. |
 | Python | Not needed for the Windows downloads | The installer and the portable executable include everything Plain Open PDF needs to run. |
 | OCR engine | Tesseract, optional | The OCR actions stay disabled unless a Tesseract backend is found on the system. |
 | Hardware requirements | Unknown. | No CPU, RAM, GPU, or display minimums are documented in the allowed sources. |
-<!-- Verified from: README.md; GitHub release v1.0.1 notes; platform/windows/scripts/nuitka/onefile.ps1; platform/windows/scripts/advanced_installer/README.md; platform/linux/scripts/build.py; .github/workflows/linux-build.yml; platform/windows/plain_open_pdf/adapters/ocr/tesseract.py [create_tesseract_ocr_backend]; platform/windows/plain_open_pdf/main.py [_create_default_ocr_backend]; platform/windows/pyproject.toml -->
+<!-- Verified from: README.md; GitHub release v1.0.1 notes; platform/windows/scripts/nuitka/onefile.ps1; platform/windows/scripts/advanced_installer/README.md; platform/windows/plain_open_pdf/adapters/ocr/tesseract.py [create_tesseract_ocr_backend]; platform/windows/plain_open_pdf/main.py [_create_default_ocr_backend]; platform/windows/pyproject.toml -->
 
 ## 3. Installation & Setup
 
@@ -106,60 +105,12 @@ the same release.
    and do not run it.
 <!-- Verified from: GitHub release v1.0.1 assets and notes -->
 
-### Linux Setup
+### Linux and macOS
 
-No Linux download has been released. The Linux implementation uses Python 3.14
-and Qt, and its build is packaged as a `.tar.gz` archive that bundles Python and
-is started with `./plain-open-pdf` from the extracted folder. It targets Ubuntu
-24.04 x86-64 with X11 or XWayland; other distributions and native Wayland are
-not verified. The first hosted build and Linux runtime verification are still
-pending.
-
-Preferences use `~/.config/plain-open-pdf`, the OCR cache uses
-`~/.cache/plain-open-pdf/ocr`, and logs use
-`~/.local/state/plain-open-pdf/logs`. Absolute `XDG_CONFIG_HOME`,
-`XDG_CACHE_HOME`, and `XDG_STATE_HOME` overrides are honored. Source launches
-use these same locations. Linux never stores data beside the executable or
-migrates Windows folders.
-
-Builds from before the app was renamed to Plain Open PDF used `open-pdf`
-folders in the same three locations. On first start, each old folder is
-carried over to its `plain-open-pdf` name unless the new folder already holds
-data. A password remembered under the earlier keyring service moves to the
-current one the first time it is used.
-
-Remembered passwords use the desktop Secret Service keyring. If the service is
-unavailable or locked, manual password entry remains available; no plaintext
-password fallback is written. To use OCR, install Tesseract and language packs
-through your distribution's package manager.
-
-Until a download is released, see the
-[Linux guide](../platform/linux/README.md) for running from source, system
-libraries, and desktop registration. The Windows download and storage
-instructions above apply only to Windows.
-<!-- Verified from: README.md; platform/linux/README.md; platform/linux/pyproject.toml; platform/linux/plain_open_pdf/config/path_handler.py [xdg_directory]; platform/linux/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore]; platform/linux/scripts/build.py [main]; .github/workflows/linux-build.yml -->
-
-### macOS Setup
-
-No macOS download has been released. The initial macOS implementation provides
-the Qt viewer and light editor, Finder document opening, standard Command
-shortcuts, and Keychain password storage. Its Python tests have been run on
-Windows; native Mac execution, packaging, printing, and Keychain access remain
-unverified. Until a download is released, see the
-[macOS guide](../platform/mac_os/README.md) for running from source.
-
-Settings use `~/Library/Application Support/Plain Open PDF`, existing OCR
-results use `~/Library/Caches/Plain Open PDF/ocr`, and logs use
-`~/Library/Logs/Plain Open PDF`. Source and packaged launches use the same
-locations. The app does not store passwords in JSON or write settings inside its
-application bundle.
-
-Builds from before the app was renamed to Plain Open PDF used `Open PDF`
-folders in the same three Library locations. At startup, each old folder is
-renamed to `Plain Open PDF` when the new folder does not exist yet. A password
-saved under the earlier Keychain service moves to the current one the first
-time it is used.
-<!-- Verified from: README.md; platform/mac_os/README.md; platform/mac_os/pyproject.toml; platform/mac_os/plain_open_pdf/config/path_handler.py; platform/mac_os/plain_open_pdf/adapters/persistence/passwords.py; platform/mac_os/plain_open_pdf/gui/application.py; platform/mac_os/scripts/plain_open_pdf.spec -->
+Linux and macOS versions are in development and have not been released. They
+will be published once they use the Plain Open PDF engine and have been tested
+on those systems. The instructions in this manual apply to Windows.
+<!-- Verified from: README.md; .github-push -->
 
 ## 4. CLI Usage
 
@@ -484,11 +435,9 @@ unavailable, remembered passwords are not available.
 
 **Can I save over the original PDF?**
 
-Yes, when there are unsaved changes and the PDF was opened from disk. On
-Windows, Plain Open PDF writes the whole document to a temporary file and then
-replaces the original, keeping a backup until the replacement succeeds. On
-Linux and macOS it appends the changes when it can and otherwise rewrites the
-file in place.
+Yes, when there are unsaved changes and the PDF was opened from disk. Plain Open
+PDF writes the whole document to a temporary file and then replaces the
+original, keeping a backup until the replacement succeeds.
 <!-- Verified from: platform/windows/plain_open_pdf/application/document/session.py [can_save]; platform/windows/plain_open_pdf/application/document/session.py [save]; platform/windows/plain_open_pdf/adapters/document/engine/lifecycle.py [save_document_in_place] -->
 
 **What is the difference between `Save As` and `Rename File`?**
