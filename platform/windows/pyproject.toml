@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plain-open-pdf"
-version = "1.0.1"
+version = "1.1.0"
 description = "Lightweight desktop PDF viewer built with PySide6 and its own PDF engine"
 readme = "README.md"
 requires-python = ">=3.12"

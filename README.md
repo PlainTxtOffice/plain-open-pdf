@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/PlainTxtOffice/open-pdf/releases/latest"><img src="https://img.shields.io/github/v/release/PlainTxtOffice/open-pdf?label=release" alt="Latest release"></a>
+  <a href="https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest"><img src="https://img.shields.io/github/v/release/PlainTxtOffice/plain-open-pdf?label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-informational" alt="License: MIT"></a>
   <a href="#download"><img src="https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-informational" alt="Platforms: Windows and Linux"></a>
 </p>
@@ -70,15 +70,15 @@ pending.
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows (portable) | [plain-open-pdf.exe](https://github.com/PlainTxtOffice/open-pdf/releases/latest/download/open-pdf.exe) | Runs without installation. |
-| Windows (installer) | [plain-open-pdf-setup.exe](https://github.com/PlainTxtOffice/open-pdf/releases/latest/download/open-pdf-setup.exe) | |
+| Windows (portable) | [plain-open-pdf.exe](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/open-pdf.exe) | Runs without installation. |
+| Windows (installer) | [plain-open-pdf-setup.exe](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/open-pdf-setup.exe) | |
 
 The Windows builds are for x64 (64-bit). Checksums and release notes are on the
-[latest release](https://github.com/PlainTxtOffice/open-pdf/releases/latest).
+[latest release](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest).
 
 The executables are unsigned. To check a download, compare the output of
 `Get-FileHash -Algorithm SHA256 PATH_TO_DOWNLOAD` with
-[SHA256SUMS.txt](https://github.com/PlainTxtOffice/open-pdf/releases/latest/download/SHA256SUMS.txt).
+[SHA256SUMS.txt](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/SHA256SUMS.txt).
 No Linux or macOS download has been released.
 
 ## User Manual
@@ -91,7 +91,7 @@ troubleshooting.
 Bug reports and feature requests are welcome. Use the
 [contact form](https://plaintxtoffice.com/contact/) on plaintxtoffice.com, or
 open an issue on
-[GitHub Issues](https://github.com/PlainTxtOffice/open-pdf/issues). If Plain
+[GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues). If Plain
 Open PDF showed its crash dialog, include the log file it names.
 
 ## License

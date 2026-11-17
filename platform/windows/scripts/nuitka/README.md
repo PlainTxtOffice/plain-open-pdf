@@ -2,9 +2,9 @@
 
 | Interface | Format | Script | Entrypoint and output | Download filename | Release status |
 | --- | --- | --- | --- | --- | --- |
-| GUI | Portable | `onefile.ps1` | `plain_open_pdf/main.py` → `build/onefile/plain-open-pdf-1.0.1-portable.exe` | `plain-open-pdf-1.0.1-portable.exe` | Build target; validate before publishing |
+| GUI | Portable | `onefile.ps1` | `plain_open_pdf/main.py` → `build/onefile/plain-open-pdf-1.1.0-portable.exe` | `plain-open-pdf-1.1.0-portable.exe` | Build target; validate before publishing |
 | GUI | Standalone | `standalone.ps1` | `plain_open_pdf/main.py` → `build/standalone/main.dist/plain-open-pdf.exe` | None; installer input | Build target |
-| GUI | Installer | `../advanced_installer/build_installer.ps1` | Release `main.dist` → `build/installer/plain-open-pdf-1.0.1-setup.exe` | `plain-open-pdf-1.0.1-setup.exe` | Build target; installation testing required |
+| GUI | Installer | `../advanced_installer/build_installer.ps1` | Release `main.dist` → `build/installer/plain-open-pdf-1.1.0-setup.exe` | `plain-open-pdf-1.1.0-setup.exe` | Build target; installation testing required |
 | GUI | Debug | `standalone-debug.ps1` | `plain_open_pdf/main.py` → `build/standalone-debug/main.dist/plain-open-pdf-debug.exe` | None | Local troubleshooting only |
 
 Plain Open PDF ships one desktop interface; there is no separate CLI download.

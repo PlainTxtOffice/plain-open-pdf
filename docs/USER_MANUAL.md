@@ -2,7 +2,7 @@
 last_updated: 2026-11-17
 version: 0.4.3
 product_versions:
-  windows: "1.0.1"
+  windows: "1.1.0"
   linux: "0.1.0"
   mac_os: "0.1.0"
 ---
@@ -36,7 +36,7 @@ Mac build are still pending.
 ### Windows Setup
 
 Download Plain Open PDF for Windows x64 (64-bit) from the
-[latest release](https://github.com/PlainTxtOffice/open-pdf/releases/latest).
+[latest release](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest).
 Choose the installer or the portable executable. They are the same program and
 differ in how you start it and where it keeps its settings, logs, and caches.
 
@@ -93,7 +93,7 @@ published release by comparing its SHA-256 checksum with `SHA256SUMS.txt` from
 the same release.
 
 1. Download `SHA256SUMS.txt` from the
-   [latest release](https://github.com/PlainTxtOffice/open-pdf/releases/latest).
+   [latest release](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest).
 1. Open PowerShell in the folder that holds the download and run:
 
    ```powershell
@@ -443,7 +443,7 @@ section 6 lists for each Windows download.
 Bug reports and feature requests are welcome. Use the
 [contact form](https://plaintxtoffice.com/contact/) on plaintxtoffice.com, or
 open an issue on
-[GitHub Issues](https://github.com/PlainTxtOffice/open-pdf/issues).
+[GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues).
 
 Say which download you use (installer or portable), your Windows version, what
 you were doing, and the text of any error message. If Plain Open PDF showed its
