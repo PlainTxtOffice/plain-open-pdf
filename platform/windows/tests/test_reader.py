@@ -303,7 +303,11 @@ def test_render_page_region_matches_the_same_part_of_the_whole_page(
     device_pixel_ratio: float,
 ) -> None:
     pdf_path = tmp_path / "region.pdf"
-    create_sized_pdf(pdf_path, width=200, height=100)
+    builder = PdfBuilder()
+    builder.new_page(width=200, height=100)
+    # A box, not text: it is drawn without the fallback font file.
+    builder.fill_box(0, (30, 50, 60, 70))
+    builder.save(pdf_path)
     document = EngineDocument.open(pdf_path)
     left, top, width, height = 30, 40, 150, 160
 

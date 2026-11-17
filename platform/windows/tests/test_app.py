@@ -3389,6 +3389,10 @@ def _open_large_page_window(
     builder = PdfBuilder()
     for _ in range(page_count):
         page_index = builder.new_page(width=1500, height=2500)
+        # Boxes give each text position ink that needs no font; the text
+        # is drawn afterwards, so the boxes do not remove it.
+        builder.fill_box(page_index, (70, 70, 100, 79))
+        builder.fill_box(page_index, (62, 1985, 120, 1998))
         builder.insert_text(page_index, (60, 80), "alpha beta")
         builder.insert_text(page_index, (60, 2000), "gamma delta")
         builder.insert_text(page_index, (900, 2000), "omega sigma")

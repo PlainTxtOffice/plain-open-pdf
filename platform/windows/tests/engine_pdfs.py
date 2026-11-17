@@ -50,6 +50,19 @@ class PdfBuilder:
         x, y = self.document.to_pdf_space(page_index, *point)
         self.native.insert_text(page_index, x, y, text, size=size)
 
+    def fill_box(
+        self,
+        page_index: int,
+        box: tuple[float, float, float, float],
+    ) -> None:
+        """Paint `box` black, removing what was drawn there.
+
+        - Unlike text, the box is drawn without a font, so it shows even
+          where the fallback font file is absent.
+        """
+        rectangle = self.document.box_to_pdf_space(page_index, box)
+        self.native.redact(page_index, [rectangle], (0.0, 0.0, 0.0))
+
     def insert_uri_link(
         self,
         page_index: int,
