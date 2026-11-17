@@ -1,1 +1,0 @@
-"""PyMuPDF-backed document adapters."""

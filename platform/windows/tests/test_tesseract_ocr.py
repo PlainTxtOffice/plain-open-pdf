@@ -1,9 +1,8 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-import pymupdf
-
-from open_pdf.adapters.ocr.tesseract import (
+from engine_pdfs import PdfBuilder
+from plain_open_pdf.adapters.ocr.tesseract import (
     TesseractOcrBackend,
     create_tesseract_ocr_backend,
     tesseract_setup_message,
@@ -46,7 +45,7 @@ def test_create_tesseract_ocr_backend_returns_none_when_unavailable(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "open_pdf.adapters.ocr.tesseract._load_tesseract_modules",
+        "plain_open_pdf.adapters.ocr.tesseract._load_tesseract_modules",
         lambda: None,
     )
 
@@ -62,11 +61,11 @@ def test_create_tesseract_ocr_backend_returns_backend_when_available(
     executable_path.write_text("", encoding="utf-8")
 
     monkeypatch.setattr(
-        "open_pdf.adapters.ocr.tesseract._load_tesseract_modules",
+        "plain_open_pdf.adapters.ocr.tesseract._load_tesseract_modules",
         lambda: fake_modules,
     )
     monkeypatch.setattr(
-        "open_pdf.adapters.ocr.tesseract._find_tesseract_executable",
+        "plain_open_pdf.adapters.ocr.tesseract._find_tesseract_executable",
         lambda: executable_path,
     )
 
@@ -79,11 +78,11 @@ def test_tesseract_setup_message_lists_missing_dependencies_and_executable(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "open_pdf.adapters.ocr.tesseract._load_tesseract_modules",
+        "plain_open_pdf.adapters.ocr.tesseract._load_tesseract_modules",
         lambda: None,
     )
     monkeypatch.setattr(
-        "open_pdf.adapters.ocr.tesseract._find_tesseract_executable",
+        "plain_open_pdf.adapters.ocr.tesseract._find_tesseract_executable",
         lambda: None,
     )
 
@@ -117,13 +116,14 @@ def test_tesseract_backend_normalizes_boxes_and_text(tmp_path: Path) -> None:
         executable_path=executable_path,
     )
 
-    document = pymupdf.open()
-    try:
-        document.new_page(width=200, height=100)
+    builder = PdfBuilder()
+    builder.new_page(width=200, height=100)
 
-        result = backend.recognize_page(document, 0, language_codes=("eng",))
-    finally:
-        document.close()
+    result = backend.recognize_page(
+        builder.document,
+        0,
+        language_codes=("eng",),
+    )
 
     assert pytesseract_module.pytesseract.tesseract_cmd == str(executable_path)
     assert pytesseract_module.calls and pytesseract_module.calls[0][1] == "eng"

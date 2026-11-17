@@ -21,7 +21,7 @@ import json, sys, tomllib
 from pathlib import Path
 config = tomllib.loads(Path(sys.argv[1]).read_text("utf-8"))
 project = config["project"]
-packaging = config["tool"]["open-pdf"]["packaging"]
+packaging = config["tool"]["plain-open-pdf"]["packaging"]
 print(json.dumps(dict(slug=project["name"], version=project["version"],
                      title=packaging["title"], company=packaging["company-name"])))
 '@
@@ -247,7 +247,7 @@ if ([IO.Path]::GetFileName($AdvancedInstaller) -ne 'AdvancedInstaller.com' -or
     throw "Advanced Installer CLI not found: $AdvancedInstaller"
 }
 $metadata = Read-InstallerMetadata $ProjectRoot
-$icon = Join-Path $ProjectRoot 'assets/open_pdf.ico'
+$icon = Join-Path $ProjectRoot 'assets/plain_open_pdf.ico'
 if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
     throw "Missing installer icon: $icon. Generate it from the shared SVG before building."
 }

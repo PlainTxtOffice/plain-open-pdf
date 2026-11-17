@@ -1,0 +1,24 @@
+[package]
+name = "plain_open_pdf_engine_python"
+version = "0.1.0"
+edition = "2024"
+description = "Python bindings for the Plain Open PDF engine"
+license = "MIT"
+publish = false
+
+[lib]
+# The Python module is named plain_open_pdf_engine; the library keeps a distinct
+# name so that it does not shadow the engine crate it wraps.
+name = "plain_open_pdf_engine_python"
+crate-type = ["cdylib"]
+
+[dependencies]
+plain_open_pdf_engine = { path = ".." }
+# The stable ABI: one build serves every supported Python version.
+pyo3 = { version = "0.30", features = ["abi3", "abi3t"] }
+
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+all = "warn"

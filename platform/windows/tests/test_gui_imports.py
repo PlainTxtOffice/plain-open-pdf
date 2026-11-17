@@ -5,47 +5,48 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-GUI_ROOT = Path("open_pdf/gui")
+GUI_ROOT = Path("plain_open_pdf/gui")
 
 # Modules that are allowed to reach past the GUI layer into an adapter or
-# straight into pymupdf, as (module path, imported module) pairs.
+# straight into the PDF engine, as (module path, imported module) pairs.
 #
 # Keep this list exact. Adding a pair is a deliberate decision to widen the
 # GUI layer's contact surface with the rest of the app, and
 # `test_no_stale_integration_allowances` fails when a pair stops matching so
 # that moving a module cannot silently retire its guard.
 ALLOWED_INTEGRATION_IMPORTS = {
-    ('open_pdf/gui/ocr/task.py', 'open_pdf.adapters.document.pymupdf.processing'),
-    ('open_pdf/gui/ocr/task.py', 'open_pdf.adapters.ocr.backend'),
-    ('open_pdf/gui/ocr/workflow.py', 'open_pdf.adapters.ocr.backend'),
-    ('open_pdf/gui/ocr/workflow.py', 'open_pdf.adapters.ocr.results'),
-    ('open_pdf/gui/views/rendering/page_render_cache.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/rendering/page_render_cache.py', 'open_pdf.adapters.document.pymupdf.qt'),
-    ('open_pdf/gui/views/rendering/page_rendering.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/rendering/page_rendering.py', 'open_pdf.adapters.document.pymupdf.qt'),
-    ('open_pdf/gui/views/rendering/page_rendering.py', 'open_pdf.adapters.document.pymupdf.rendering'),
-    ('open_pdf/gui/views/rendering/render_handle_cache.py', 'pymupdf'),
-    ('open_pdf/gui/views/rendering/selection.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/rendering/thumbnail_rendering.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/rendering/thumbnail_rendering.py', 'open_pdf.adapters.document.pymupdf.qt'),
-    ('open_pdf/gui/views/rendering/thumbnail_rendering.py', 'open_pdf.adapters.document.pymupdf.rendering'),
-    ('open_pdf/gui/views/rendering/zoom/preview.py', 'open_pdf.adapters.document.pymupdf.rendering'),
-    ('open_pdf/gui/views/root_window/document_sync.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/root_window/navigation/bookmarks.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/root_window/navigation/page_links.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/root_window/panes/thumbnails.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/root_window/panes/thumbnails.py', 'open_pdf.adapters.document.pymupdf.qt'),
-    ('open_pdf/gui/views/root_window/persistence.py', 'open_pdf.adapters.persistence.desktop'),
-    ('open_pdf/gui/views/root_window/window.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/root_window/window.py', 'open_pdf.adapters.ocr.backend'),
-    ('open_pdf/gui/views/root_window/window.py', 'open_pdf.adapters.ocr.results'),
-    ('open_pdf/gui/views/root_window/window.py', 'open_pdf.adapters.persistence.desktop'),
-    ('open_pdf/gui/views/search/search_navigation.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/search/search_task.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/search/search_task.py', 'open_pdf.adapters.document.pymupdf.processing'),
-    ('open_pdf/gui/views/workflows/printing.py', 'open_pdf.adapters.document.errors'),
-    ('open_pdf/gui/views/workflows/printing.py', 'open_pdf.adapters.document.pymupdf.qt'),
-    ('open_pdf/gui/views/workflows/text_editing.py', 'open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/ocr/task.py', 'plain_open_pdf.adapters.document.engine.processing'),
+    ('plain_open_pdf/gui/ocr/task.py', 'plain_open_pdf.adapters.ocr.backend'),
+    ('plain_open_pdf/gui/ocr/workflow.py', 'plain_open_pdf.adapters.ocr.backend'),
+    ('plain_open_pdf/gui/ocr/workflow.py', 'plain_open_pdf.adapters.ocr.results'),
+    ('plain_open_pdf/gui/views/rendering/page_render_cache.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/rendering/page_render_cache.py', 'plain_open_pdf.adapters.document.engine.qt'),
+    ('plain_open_pdf/gui/views/rendering/page_rendering.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/rendering/page_rendering.py', 'plain_open_pdf.adapters.document.engine.qt'),
+    ('plain_open_pdf/gui/views/rendering/page_rendering.py', 'plain_open_pdf.adapters.document.engine.rendering'),
+    ('plain_open_pdf/gui/views/rendering/render_handle_cache.py', 'plain_open_pdf.adapters.document.engine.document'),
+    ('plain_open_pdf/gui/views/rendering/render_handle_cache.py', 'plain_open_pdf.adapters.document.engine.lifecycle'),
+    ('plain_open_pdf/gui/views/rendering/selection.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/rendering/thumbnail_rendering.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/rendering/thumbnail_rendering.py', 'plain_open_pdf.adapters.document.engine.qt'),
+    ('plain_open_pdf/gui/views/rendering/thumbnail_rendering.py', 'plain_open_pdf.adapters.document.engine.rendering'),
+    ('plain_open_pdf/gui/views/rendering/zoom/preview.py', 'plain_open_pdf.adapters.document.engine.rendering'),
+    ('plain_open_pdf/gui/views/root_window/document_sync.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/root_window/navigation/bookmarks.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/root_window/navigation/page_links.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/root_window/panes/thumbnails.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/root_window/panes/thumbnails.py', 'plain_open_pdf.adapters.document.engine.qt'),
+    ('plain_open_pdf/gui/views/root_window/persistence.py', 'plain_open_pdf.adapters.persistence.desktop'),
+    ('plain_open_pdf/gui/views/root_window/window.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/root_window/window.py', 'plain_open_pdf.adapters.ocr.backend'),
+    ('plain_open_pdf/gui/views/root_window/window.py', 'plain_open_pdf.adapters.ocr.results'),
+    ('plain_open_pdf/gui/views/root_window/window.py', 'plain_open_pdf.adapters.persistence.desktop'),
+    ('plain_open_pdf/gui/views/search/search_navigation.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/search/search_task.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/search/search_task.py', 'plain_open_pdf.adapters.document.engine.processing'),
+    ('plain_open_pdf/gui/views/workflows/printing.py', 'plain_open_pdf.adapters.document.errors'),
+    ('plain_open_pdf/gui/views/workflows/printing.py', 'plain_open_pdf.adapters.document.engine.qt'),
+    ('plain_open_pdf/gui/views/workflows/text_editing.py', 'plain_open_pdf.adapters.document.errors'),
 }
 
 
@@ -63,7 +64,9 @@ def _imported_modules(module_path: Path) -> list[str]:
 
 def _is_integration_import(module: str) -> bool:
     """Report whether an import crosses out of the GUI layer."""
-    return module == "pymupdf" or module.startswith("open_pdf.adapters.")
+    return module == "plain_open_pdf_engine" or module.startswith(
+        "plain_open_pdf.adapters.",
+    )
 
 
 def _actual_integration_imports() -> set[tuple[str, str]]:
@@ -89,7 +92,7 @@ def test_gui_components_do_not_import_composition_root() -> None:
         module_path.as_posix()
         for module_path in GUI_ROOT.rglob("*.py")
         if module_path.name != "app.py"
-        and "open_pdf.gui.app" in _imported_modules(module_path)
+        and "plain_open_pdf.gui.app" in _imported_modules(module_path)
     )
 
     assert importing_modules == []
@@ -106,6 +109,18 @@ def test_gui_adapter_imports_are_explicit() -> None:
         "ALLOWED_INTEGRATION_IMPORTS deliberately: "
         f"{unexpected}"
     )
+
+
+def test_app_does_not_import_pymupdf() -> None:
+    """The app reads PDFs with its own engine, never PyMuPDF or MuPDF."""
+    importing_modules = sorted(
+        module_path.as_posix()
+        for module_path in Path("plain_open_pdf").rglob("*.py")
+        for imported in _imported_modules(module_path)
+        if imported.split(".")[0] in {"pymupdf", "fitz"}
+    )
+
+    assert importing_modules == []
 
 
 def test_no_stale_integration_allowances() -> None:

@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from open_pdf.gui.views.rendering.page_geometry import PageGeometryMixin
-from open_pdf.gui.views.rendering.page_render_cache import PageRenderCacheMixin
+from plain_open_pdf.gui.views.rendering.page_geometry import PageGeometryMixin
+from plain_open_pdf.gui.views.rendering.page_render_cache import PageRenderCacheMixin
 
 
 class _Viewport(PageGeometryMixin, PageRenderCacheMixin):

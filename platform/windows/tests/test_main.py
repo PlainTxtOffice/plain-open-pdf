@@ -13,8 +13,8 @@ if _FONT_DIRECTORY.exists():
 
 from PySide6.QtWidgets import QApplication
 
-import open_pdf.main as main_module
-from open_pdf.adapters.runtime.single_instance import SingleInstanceCoordinator
+import plain_open_pdf.main as main_module
+from plain_open_pdf.adapters.runtime.single_instance import SingleInstanceCoordinator
 
 
 class _FakeWindow:
@@ -44,7 +44,7 @@ def test_single_instance_coordinator_forwards_pdf_path(
 ) -> None:
     _app()
     coordinator = SingleInstanceCoordinator(
-        f"openpdf-test-{uuid4()}",
+        f"plainopenpdf-test-{uuid4()}",
     )
     window = _FakeWindow()
 
@@ -67,7 +67,7 @@ def test_single_instance_coordinator_activates_existing_window_without_path() ->
 ):
     _app()
     coordinator = SingleInstanceCoordinator(
-        f"openpdf-test-{uuid4()}",
+        f"plainopenpdf-test-{uuid4()}",
     )
     window = _FakeWindow()
 
@@ -89,7 +89,7 @@ def test_single_instance_coordinator_returns_false_without_primary_instance() ->
 ):
     _app()
     coordinator = SingleInstanceCoordinator(
-        f"openpdf-test-{uuid4()}",
+        f"plainopenpdf-test-{uuid4()}",
     )
 
     try:

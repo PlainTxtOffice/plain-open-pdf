@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from open_pdf.domains.document.pages.history import (
+from plain_open_pdf.domains.document.pages.history import (
     HISTORY_LIMIT,
     PageHistory,
     ScrollState,

@@ -2,7 +2,7 @@
 
 import pytest
 
-from open_pdf.domains.document.pages.reordering import (
+from plain_open_pdf.domains.document.pages.reordering import (
     dirty_pages_after_delete,
     dirty_pages_after_insert,
     dirty_pages_after_move,

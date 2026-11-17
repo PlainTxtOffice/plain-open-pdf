@@ -4,18 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pymupdf
 import pytest
 
-from open_pdf.application.document.session import PdfDocument
+from engine_pdfs import PdfBuilder
+from plain_open_pdf.application.document.session import PdfDocument
 
 
 def create_text_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    page = document.new_page()
-    page.insert_text((72, 120), "alpha beta gamma", fontname="helv", fontsize=14)
-    document.save(path)
-    document.close()
+    builder = PdfBuilder()
+    builder.new_page()
+    builder.insert_text(0, (72, 120), "alpha beta gamma", size=14)
+    builder.save(path)
 
 
 def test_text_spans_report_their_text_font_and_box(tmp_path: Path) -> None:
@@ -91,12 +90,11 @@ def test_longer_replacement_shrinks_to_stay_on_one_line(
 
 
 def create_two_line_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    page = document.new_page()
-    page.insert_text((72, 120), "first line here", fontname="helv", fontsize=12)
-    page.insert_text((72, 200), "second line here", fontname="helv", fontsize=12)
-    document.save(path)
-    document.close()
+    builder = PdfBuilder()
+    builder.new_page()
+    builder.insert_text(0, (72, 120), "first line here", size=12)
+    builder.insert_text(0, (72, 200), "second line here", size=12)
+    builder.save(path)
 
 
 def test_span_lookup_picks_the_span_the_selection_covers(

@@ -12,7 +12,7 @@ pytestmark = pytest.mark.skipif(not POWERSHELL, reason="PowerShell 7 is required
 def clean_dist(project):
     dist = project / "build" / "standalone" / "main.dist"
     dist.mkdir(parents=True)
-    (dist / "open-pdf.exe").write_bytes(b"MZ")
+    (dist / "plain-open-pdf.exe").write_bytes(b"MZ")
     return dist
 
 
@@ -27,8 +27,8 @@ def test_clean_dist_passes_validation(tmp_path):
 def test_validation_reports_runtime_data_and_private_inputs(tmp_path):
     project, _ = make_project(tmp_path)
     dist = clean_dist(project)
-    names = ["data", "logs", "open-pdf-data", "tests", "open_pdf/tests",
-             "portable.marker", ".env", "Open PDF.exe.key"]
+    names = ["data", "logs", "plain-open-pdf-data", "tests", "plain_open_pdf/tests",
+             "portable.marker", ".env", "plain-open-pdf.exe.key"]
     for name in names:
         path = dist / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -54,20 +54,23 @@ def test_validation_allows_dependency_data_and_tests(tmp_path):
 def test_validation_requires_an_executable(tmp_path):
     project, _ = make_project(tmp_path)
     dist = clean_dist(project)
-    (dist / "open-pdf.exe").unlink()
+    (dist / "plain-open-pdf.exe").unlink()
     result = run_script(project, sys.executable, "validate_release.ps1")
     assert result.returncode == 1
-    assert "Missing or empty release executable: open-pdf.exe" in result.stdout
+    assert "Missing or empty release executable: plain-open-pdf.exe" in result.stdout
 
 
-def test_validation_rejects_old_executable(tmp_path):
+# Pre-rename executable names: the product was "Open PDF" before it became
+# Plain Open PDF, and a payload must not ship an executable left from then.
+@pytest.mark.parametrize("stale", ["Open PDF.exe", "open-pdf.exe"])
+def test_validation_rejects_old_executable(tmp_path, stale):
     project, _ = make_project(tmp_path)
     dist = clean_dist(project)
-    (dist / "Open PDF.exe").write_bytes(b"MZ")
+    (dist / stale).write_bytes(b"MZ")
     result = run_script(project, sys.executable, "validate_release.ps1")
     assert result.returncode == 1
-    assert "Stale Open PDF.exe remains" in result.stdout
-    assert (dist / "Open PDF.exe").exists()
+    assert f"Stale {stale} remains" in result.stdout
+    assert (dist / stale).exists()
 
 
 def test_validation_reports_missing_distribution(tmp_path):

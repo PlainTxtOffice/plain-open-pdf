@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from open_pdf.application.document import redaction
+from plain_open_pdf.application.document import redaction
 
 
 class _FakeDocument:

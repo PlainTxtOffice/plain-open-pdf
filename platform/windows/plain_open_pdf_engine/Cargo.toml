@@ -1,0 +1,19 @@
+#:schema https://raw.githubusercontent.com/SchemaStore/schemastore/cf458e6e33141d3a0506f24279de79eeeeb5130a/src/schemas/json/cargo.json
+# Pin the single-file schema: Even Better TOML 0.21.2 rejects valid lints
+# with the newer schema's external lint definitions.
+
+[package]
+name = "plain_open_pdf_engine"
+version = "0.1.0"
+edition = "2024"
+description = "Independent PDF engine for Plain Open PDF, under development"
+license = "MIT"
+readme = "README.md"
+publish = false
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = "warn"

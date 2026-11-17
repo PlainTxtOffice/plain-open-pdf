@@ -1,13 +1,13 @@
 ---
-last_updated: 2026-11-09
+last_updated: 2026-11-17
 version: 0.1.1
 description: Platform workflow entrypoints, native runners, setup, and build artifacts.
 ---
 
 # GitHub Workflows
 
-These workflows validate and build Open PDF on GitHub-hosted machines after
-publication. Local development and release builds still run on your own
+These workflows validate and build Plain Open PDF on GitHub-hosted machines
+after publication. Local development and release builds still run on your own
 platform machines.
 
 | Platform | Workflow | Runner | Checks and output |
@@ -52,9 +52,9 @@ integration and source GUI tests.
 
 It invokes `scripts/build.py` under Xvfb, then checks the extracted standalone
 archive with `scripts/smoke_test.py`. The uploaded artifact is
-`open-pdf-linux-x86_64`, containing `open-pdf-*-linux-x86_64.tar.gz`.
-Linux setup and checks are defined directly in the workflow; there is no
-Linux `scripts/ci.sh` entrypoint.
+`plain-open-pdf-linux-x86_64`, containing
+`plain-open-pdf-*-linux-x86_64.tar.gz`. Linux setup and checks are defined
+directly in the workflow; there is no Linux `scripts/ci.sh` entrypoint.
 
 See the [Linux guide](../../platform/linux/README.md).
 
@@ -69,7 +69,7 @@ bash -euo pipefail scripts/ci.sh
 The script creates a virtual environment using `PYTHON_BIN` or `python3`,
 requires Python 3.12 through 3.15, installs dependencies, and runs lint,
 type, Markdown, and offscreen tests. It builds with PyInstaller using the
-explicit test bundle identity `local.openpdf.ci`, verifies the signature,
+explicit test bundle identity `local.plainopenpdf.ci`, verifies the signature,
 and archives the app in `build/ci-artifacts/`.
 
 The workflow packages that directory as `build/macos-build.tar.gz`. Its

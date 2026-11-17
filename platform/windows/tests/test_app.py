@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 import os
 import sys
 
@@ -11,8 +12,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _FONT_DIRECTORY = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 if _FONT_DIRECTORY.exists():
     os.environ.setdefault("QT_QPA_FONTDIR", str(_FONT_DIRECTORY))
-import pymupdf
 import pytest
+
+from engine_pdfs import (
+    PdfBuilder,
+    create_named_destination_pdf,
+    create_pdf,
+    edited_pdf,
+    open_pdf,
+)
 
 from PySide6.QtGui import QAction
 from PySide6.QtGui import QCloseEvent
@@ -22,7 +30,9 @@ from PySide6.QtGui import QWheelEvent
 from PySide6.QtCore import QEvent
 from PySide6.QtCore import QPoint
 from PySide6.QtCore import QPointF
+from PySide6.QtCore import QRect
 from PySide6.QtCore import QRectF
+from PySide6.QtCore import QSize
 from PySide6.QtCore import Qt
 from PySide6.QtPrintSupport import QAbstractPrintDialog
 from PySide6.QtTest import QTest
@@ -37,18 +47,28 @@ from PySide6.QtWidgets import QStyle
 from PySide6.QtWidgets import QToolBar
 from PySide6.QtWidgets import QToolButton
 
-import open_pdf.gui.views.root_window.window as app_module
-import open_pdf.gui.views.root_window.navigation.bookmarks as bookmarks_module
-import open_pdf.gui.views.rendering.selection as selection_module
-import open_pdf.gui.views.root_window.navigation.page_links as page_links_module
-import open_pdf.gui.views.root_window.panes.thumbnails as thumbnails_module
-import open_pdf.gui.views.workflows.printing as printing_module
-from open_pdf.adapters.ocr.cache import OcrCache
-from open_pdf.domains.document.models import PdfOcrPageResult, PdfPageLink
-from open_pdf.gui.app import MainWindow
-from open_pdf.gui.views.rendering.page_metrics import PAGE_CONTENT_CHROME
-from open_pdf.gui.views.rendering.page_surface import PageSurfaceLabel
-from open_pdf.gui.views.dialogs.properties_dialog import DocumentPropertiesDialog
+import plain_open_pdf.gui.views.root_window.window as app_module
+import plain_open_pdf.gui.views.root_window.navigation.bookmarks as bookmarks_module
+import plain_open_pdf.gui.views.rendering.selection as selection_module
+import plain_open_pdf.gui.views.root_window.navigation.page_links as page_links_module
+import plain_open_pdf.gui.views.root_window.panes.thumbnails as thumbnails_module
+import plain_open_pdf.gui.views.workflows.printing as printing_module
+from plain_open_pdf.adapters.document.engine.qt import qimage_from_render
+from plain_open_pdf.adapters.document.engine.rendering import (
+    display_size_for_page_size,
+)
+from plain_open_pdf.adapters.ocr.cache import OcrCache
+from plain_open_pdf.domains.document.models import PdfOcrPageResult, PdfPageLink
+from plain_open_pdf.gui.app import MainWindow
+from plain_open_pdf.gui.views.rendering.page_metrics import PAGE_CONTENT_CHROME
+from plain_open_pdf.gui.views.rendering.page_surface import PageSurfaceLabel
+from plain_open_pdf.gui.views.rendering.regions import (
+    geometry as region_geometry,
+)
+from plain_open_pdf.gui.views.rendering.regions import (
+    render_queue as region_queue,
+)
+from plain_open_pdf.gui.views.dialogs.properties_dialog import DocumentPropertiesDialog
 
 
 class _NoOpThreadPool:
@@ -116,29 +136,11 @@ def _app() -> QApplication:
 
 
 def _create_sample_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        first_page = document.new_page()
-        first_page.insert_text((72, 72), "first page")
-
-        second_page = document.new_page()
-        second_page.insert_text((72, 72), "second page")
-
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(path, ["first page", "second page"])
 
 
 def _create_three_page_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        for page_number in range(1, 4):
-            page = document.new_page()
-            page.insert_text((72, 72), f"page {page_number}")
-
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(path, [f"page {page_number}" for page_number in range(1, 4)])
 
 
 def _create_single_page_pdf(
@@ -147,73 +149,41 @@ def _create_single_page_pdf(
     width: float,
     height: float,
 ) -> None:
-    document = pymupdf.open()
-    try:
-        page = document.new_page(width=width, height=height)
-        page.insert_text((20, 40), "single page")
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(
+        path,
+        ["single page"],
+        width=width,
+        height=height,
+        point=(20.0, 40.0),
+    )
 
 
 def _create_password_protected_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        page = document.new_page()
-        page.insert_text((72, 72), "locked")
-        document.save(
-            path,
-            encryption=pymupdf.PDF_ENCRYPT_AES_256,
-            owner_pw="owner-pass",
-            user_pw="user-pass",
-        )
-    finally:
-        document.close()
+    builder = PdfBuilder()
+    builder.new_page()
+    builder.insert_text(0, (72, 72), "locked")
+    builder.save(path, user_password="user-pass", owner_password="owner-pass")
 
 
 def _create_image_only_pdf(path: Path, *, page_count: int = 1) -> None:
-    document = pymupdf.open()
-    try:
-        for _ in range(page_count):
-            document.new_page()
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(path, [""] * page_count)
 
 
 def _create_linked_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        document.new_page()
-        document.new_page()
-        document.new_page()
-        document.new_page()
-
-        page_one = document.load_page(0)
-        page_two = document.load_page(1)
-        page_two.insert_text((72, 72), "target page")
-
-        page_one.insert_text((72, 72), "external link")
-        page_one.insert_link(
-            {
-                "kind": pymupdf.LINK_URI,
-                "from": pymupdf.Rect(72, 72, 152, 96),
-                "uri": "https://example.com/spec",
-            },
-        )
-        page_one.insert_text((72, 140), "internal link")
-        page_one.insert_link(
-            {
-                "kind": pymupdf.LINK_GOTO,
-                "from": pymupdf.Rect(72, 140, 152, 164),
-                "page": 1,
-                "to": pymupdf.Point(20, 250),
-            },
-        )
-
-        document.save(path)
-    finally:
-        document.close()
+    builder = PdfBuilder()
+    for _ in range(4):
+        builder.new_page()
+    builder.insert_text(1, (72, 72), "target page")
+    builder.insert_text(0, (72, 72), "external link")
+    builder.insert_uri_link(0, (72, 72, 152, 96), "https://example.com/spec")
+    builder.insert_text(0, (72, 140), "internal link")
+    builder.insert_page_link(
+        0,
+        (72, 140, 152, 164),
+        target_page=1,
+        point=(20, 250),
+    )
+    builder.save(path)
 
 
 def _build_ocr_page_result(page_index: int, text: str) -> PdfOcrPageResult:
@@ -250,7 +220,7 @@ class _FakeOcrBackend:
 
     def recognize_page(
         self,
-        document: pymupdf.Document,
+        document: object,
         page_index: int,
         *,
         language_codes: tuple[str, ...],
@@ -461,13 +431,7 @@ def test_thumbnail_icon_box_matches_the_document_page_aspect(
 ) -> None:
     app = _app()
     source_path = tmp_path / "tall-pages.pdf"
-    document = pymupdf.open()
-    try:
-        for _ in range(2):
-            document.new_page(width=400, height=800)
-        document.save(source_path)
-    finally:
-        document.close()
+    create_pdf(source_path, ["", ""], width=400, height=800)
 
     window = MainWindow()
     window._thread_pool = _NoOpThreadPool()
@@ -556,10 +520,8 @@ def test_flat_bookmarks_do_not_reserve_an_expander_gutter(
     source_path = tmp_path / "flat-bookmarks.pdf"
     _create_sample_pdf(source_path)
 
-    document = pymupdf.open(source_path)
-    document.set_toc([[1, "Cover", 1], [1, "Copyright", 2]])
-    document.saveIncr()
-    document.close()
+    with edited_pdf(source_path) as document:
+        document.set_outline([(1, "Cover", 0), (1, "Copyright", 1)])
 
     window = MainWindow()
     window._thread_pool = _NoOpThreadPool()
@@ -573,10 +535,8 @@ def test_nested_bookmarks_retain_an_expander_gutter(tmp_path: Path) -> None:
     source_path = tmp_path / "nested-bookmarks.pdf"
     _create_sample_pdf(source_path)
 
-    document = pymupdf.open(source_path)
-    document.set_toc([[1, "Chapter", 1], [2, "Topic", 2]])
-    document.saveIncr()
-    document.close()
+    with edited_pdf(source_path) as document:
+        document.set_outline([(1, "Chapter", 0), (2, "Topic", 1)])
 
     window = MainWindow()
     window._thread_pool = _NoOpThreadPool()
@@ -723,8 +683,8 @@ def test_toolbar_shows_edit_pdf_text_button(monkeypatch) -> None:
         "_show_about_dialog",
         lambda _window: about_calls.append(
             (
-                "About Open PDF",
-                "Open PDF\n\nA lightweight desktop PDF viewer and editor.",
+                "About Plain Open PDF",
+                "Plain Open PDF\n\nA lightweight desktop PDF viewer and editor.",
             )
         ),
     )
@@ -738,14 +698,14 @@ def test_toolbar_shows_edit_pdf_text_button(monkeypatch) -> None:
         Qt.ToolButtonStyle.ToolButtonTextOnly
     )
     assert edit_pdf_button.text() == "Edit PDF"
-    assert window._about_action.text() == "About Open PDF"
+    assert window._about_action.text() == "About Plain Open PDF"
 
     window._about_action.trigger()
 
     assert about_calls == [
         (
-            "About Open PDF",
-            "Open PDF\n\nA lightweight desktop PDF viewer and editor.",
+            "About Plain Open PDF",
+            "Plain Open PDF\n\nA lightweight desktop PDF viewer and editor.",
         ),
     ]
 
@@ -972,7 +932,7 @@ def test_print_document_honors_selected_page_range(
     monkeypatch.setattr(printing_module, "QPainter", _FakePainter)
     monkeypatch.setattr(
         printing_module,
-        "qimage_from_pymupdf",
+        "qimage_from_render",
         lambda _pixmap: _FakeImage(),
     )
     monkeypatch.setattr(
@@ -1262,9 +1222,7 @@ def test_clicking_internal_pdf_link_navigates_to_target_page(
 
     inset = PAGE_CONTENT_CHROME / 2
     target_page_label = window._page_labels[1]
-    target_content_y = target_page_label.y() + round(
-        target_page_label.height() - inset - 250
-    )
+    target_content_y = target_page_label.y() + round(inset + 250)
     scroll_value = window._document_scroll_area.verticalScrollBar().value()
 
     assert window._document.state.current_page_index == 1
@@ -1313,7 +1271,7 @@ def test_stale_page_render_skips_rasterization_and_keeps_new_pending(
         raise AssertionError(msg)
 
     monkeypatch.setattr(
-        "open_pdf.gui.views.rendering.page_rendering.render_page",
+        "plain_open_pdf.gui.views.rendering.page_rendering.render_page",
         _unexpected_render,
     )
 
@@ -1333,35 +1291,11 @@ def test_stale_page_render_skips_rasterization_and_keeps_new_pending(
 
 
 def test_clicking_named_destination_pdf_link_navigates_to_target_page(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     _app()
     source_path = tmp_path / "named-internal-link.pdf"
-    _create_sample_pdf(source_path)
-
-    def _fake_get_links(page: pymupdf.Page) -> list[dict[str, object]]:
-        if page.number == 0:
-            return [
-                {
-                    "from": pymupdf.Rect(72, 140, 152, 164),
-                    "nameddest": "chapter-2",
-                },
-            ]
-        return []
-
-    def _fake_resolve_link(
-        document: pymupdf.Document,
-        uri: str | None = None,
-        chapters: int = 0,
-    ) -> tuple[int, float, float]:
-        del document, chapters
-        if uri == "#nameddest=chapter-2":
-            return 1, 20.0, 250.0
-        return -1, 0.0, 0.0
-
-    monkeypatch.setattr(pymupdf.Page, "get_links", _fake_get_links)
-    monkeypatch.setattr(pymupdf.Document, "resolve_link", _fake_resolve_link)
+    create_named_destination_pdf(source_path)
 
     window = MainWindow()
     window._thread_pool = _ImmediateThreadPool()
@@ -1383,9 +1317,7 @@ def test_clicking_named_destination_pdf_link_navigates_to_target_page(
     _app().processEvents()
 
     target_page_label = window._page_labels[1]
-    target_content_y = target_page_label.y() + round(
-        target_page_label.height() - inset - 250
-    )
+    target_content_y = target_page_label.y() + round(inset + 250)
     scroll_value = window._document_scroll_area.verticalScrollBar().value()
 
     assert window._document.state.current_page_index == 1
@@ -1416,7 +1348,7 @@ def test_pdf_link_destination_zoom_is_applied(
         PdfPageLink(
             bounds=(72.0, 140.0, 152.0, 164.0),
             target_page_index=1,
-            target_point=(20.0, 250.0),
+            target_point=(20.0, 592.0),
             target_zoom=2.0,
         ),
     )
@@ -1434,20 +1366,9 @@ def test_clicking_pdf_file_link_opens_target_pdf_in_app(
     source_path = tmp_path / "linked-source.pdf"
     target_path = tmp_path / "linked-target.pdf"
     _create_sample_pdf(source_path)
-    _create_sample_pdf(target_path)
-
-    def _fake_resolve_link(
-        document: pymupdf.Document,
-        uri: str | None = None,
-        chapters: int = 0,
-    ) -> tuple[int, float, float]:
-        del document, chapters
-        if uri == "#nameddest=chapter-2":
-            return 1, 20.0, 250.0
-        return -1, 0.0, 0.0
+    create_named_destination_pdf(target_path)
 
     opened_urls: list[str] = []
-    monkeypatch.setattr(pymupdf.Document, "resolve_link", _fake_resolve_link)
     monkeypatch.setattr(
         page_links_module.QDesktopServices,
         "openUrl",
@@ -1850,14 +1771,7 @@ def test_zoom_keeps_current_page_visible_after_rerender(
 ) -> None:
     app = _app()
     source_path = tmp_path / "zoom-rerender.pdf"
-    document = pymupdf.open()
-    try:
-        for page_number in range(4):
-            page = document.new_page()
-            page.insert_text((72, 72), f"page {page_number + 1}")
-        document.save(source_path)
-    finally:
-        document.close()
+    create_pdf(source_path, [f"page {number}" for number in range(1, 5)])
 
     window = MainWindow()
     window._thread_pool = _NoOpThreadPool()
@@ -1883,14 +1797,13 @@ def test_zoom_preserves_page_point_under_mouse_anchor(
 ) -> None:
     app = _app()
     source_path = tmp_path / "zoom-mouse-anchor.pdf"
-    document = pymupdf.open()
-    try:
-        for page_number in range(4):
-            page = document.new_page(width=320, height=240)
-            page.insert_text((40, 40), f"page {page_number + 1}")
-        document.save(source_path)
-    finally:
-        document.close()
+    create_pdf(
+        source_path,
+        [f"page {number}" for number in range(1, 5)],
+        width=320,
+        height=240,
+        point=(40.0, 40.0),
+    )
 
     window = MainWindow()
     window._thread_pool = _NoOpThreadPool()
@@ -1998,14 +1911,13 @@ def test_ctrl_wheel_zoom_keeps_visible_page_when_mouse_is_in_margin(
 ) -> None:
     app = _app()
     source_path = tmp_path / "ctrl-wheel-margin-anchor.pdf"
-    document = pymupdf.open()
-    try:
-        for page_number in range(4):
-            page = document.new_page(width=320, height=240)
-            page.insert_text((40, 40), f"page {page_number + 1}")
-        document.save(source_path)
-    finally:
-        document.close()
+    create_pdf(
+        source_path,
+        [f"page {number}" for number in range(1, 5)],
+        width=320,
+        height=240,
+        point=(40.0, 40.0),
+    )
 
     window = MainWindow()
     window._thread_pool = _NoOpThreadPool()
@@ -2043,14 +1955,7 @@ def test_ctrl_wheel_zoom_keeps_visible_page_when_mouse_is_in_margin(
 def test_ctrl_wheel_zoom_burst_keeps_current_page(tmp_path: Path) -> None:
     app = _app()
     source_path = tmp_path / "ctrl-wheel-burst.pdf"
-    document = pymupdf.open()
-    try:
-        for page_number in range(6):
-            page = document.new_page()
-            page.insert_text((72, 72), f"page {page_number + 1}")
-        document.save(source_path)
-    finally:
-        document.close()
+    create_pdf(source_path, [f"page {number}" for number in range(1, 7)])
 
     window = MainWindow()
     window._thread_pool = _NoOpThreadPool()
@@ -2825,7 +2730,7 @@ def test_notes_pane_edits_are_saved_inside_pdf(tmp_path: Path) -> None:
     assert window._document.is_dirty() is True
     assert window._save_action.isEnabled() is True
     assert window._document_tabs.tabText(0) == "* notes-pane.pdf"
-    assert window.windowTitle() == "Open PDF - * notes-pane.pdf"
+    assert window.windowTitle() == "Plain Open PDF - * notes-pane.pdf"
 
     window._save()
     window.close()
@@ -2954,11 +2859,7 @@ def test_rename_file_can_overwrite_existing_destination(
     assert window._document.source_path == target_path
     assert source_path.exists() is False
     assert target_path.exists()
-    replacement_document = pymupdf.open(target_path)
-    try:
-        assert replacement_document.page_count == 2
-    finally:
-        replacement_document.close()
+    assert open_pdf(target_path).page_count == 2
 
 
 def test_rename_file_leaves_existing_destination_when_overwrite_cancelled(
@@ -2992,11 +2893,7 @@ def test_rename_file_leaves_existing_destination_when_overwrite_cancelled(
 
     assert window._document.source_path == source_path
     assert source_path.exists()
-    original_target_document = pymupdf.open(target_path)
-    try:
-        assert original_target_document.page_count == 3
-    finally:
-        original_target_document.close()
+    assert open_pdf(target_path).page_count == 3
 
 
 def test_properties_action_updates_pdf_metadata(
@@ -3444,3 +3341,984 @@ def test_rename_file_releases_cached_render_handles_before_cleanup(
         assert window._document.source_path == target_path
     finally:
         window._document.close_document()
+
+
+class _RecordingThreadPool:
+    """Run each task at once and keep it for later inspection."""
+
+    def __init__(self) -> None:
+        self.tasks: list[object] = []
+
+    def start(self, task: object) -> None:
+        self.tasks.append(task)
+        task.run()
+
+
+def _page_render_requests(pool: object, *, page_index: int = 0) -> list:
+    return [
+        task._request
+        for task in pool.tasks
+        if hasattr(task, "_request")
+        and task._request.page_index == page_index
+    ]
+
+
+def _region_requests(pool: object, *, page_index: int = 0) -> list:
+    return [
+        request
+        for request in _page_render_requests(pool, page_index=page_index)
+        if request.region is not None
+    ]
+
+
+def _open_large_page_window(
+    monkeypatch,
+    tmp_path: Path,
+    pool: object,
+    *,
+    page_count: int = 2,
+) -> MainWindow:
+    """Open pages of 1500 x 2500 points in a window far smaller than one.
+
+    The pixel count that switches a page to region rendering is lowered so
+    the pages count as large at zoom 1.0 on the offscreen platform.
+    """
+    _app()
+    monkeypatch.setattr(region_geometry, "REGION_MIN_PAGE_PIXELS", 1_000_000)
+    source_path = tmp_path / "large-pages.pdf"
+    builder = PdfBuilder()
+    for _ in range(page_count):
+        page_index = builder.new_page(width=1500, height=2500)
+        builder.insert_text(page_index, (60, 80), "alpha beta")
+        builder.insert_text(page_index, (60, 2000), "gamma delta")
+        builder.insert_text(page_index, (900, 2000), "omega sigma")
+    builder.insert_uri_link(0, (60, 60, 200, 100), "https://example.com/a")
+    builder.save(source_path)
+
+    window = MainWindow()
+    window._thread_pool = pool
+    window.resize(900, 700)
+    window.show()
+    _app().processEvents()
+    window._open_document(source_path)
+    _app().processEvents()
+    return window
+
+
+def _search_open_document(window: MainWindow, query: str) -> None:
+    """Search the open document and mark the matches on its pages."""
+    window._find_action.trigger()
+    window._search_input.setText(query)
+    window._search_debounce_timer.stop()
+    window._run_search()
+    _app().processEvents()
+
+
+def _pending_region_task(pool: object, window: MainWindow) -> object:
+    """Return the queued region task that is page 0's pending render."""
+    return next(
+        task
+        for task in pool.tasks
+        if hasattr(task, "_request")
+        and task._request.region is not None
+        and task._request.page_index == 0
+        and task._request.request_token == window._pending_page_indexes[0]
+    )
+
+
+def _visible_page_rect(window: MainWindow, page_index: int = 0) -> QRect:
+    """Return the part of a page inside the viewport, in page pixels."""
+    view = window._viewport_in_page(page_index)
+    assert view is not None
+    page_label = window._page_labels[page_index]
+    return view.intersected(
+        QRect(
+            0,
+            0,
+            page_label.width() - PAGE_CONTENT_CHROME,
+            page_label.height() - PAGE_CONTENT_CHROME,
+        ),
+    )
+
+
+def _has_ink(page_label: PageSurfaceLabel, page_rect: QRect) -> bool:
+    """Return whether the label paints anything dark in a page rectangle."""
+    inset = PAGE_CONTENT_CHROME // 2
+    image = page_label.grab(page_rect.translated(inset, inset)).toImage()
+    return any(
+        image.pixelColor(x, y).lightness() < 200
+        for y in range(image.height())
+        for x in range(image.width())
+    )
+
+
+def test_small_page_is_rendered_whole_without_a_base(tmp_path: Path) -> None:
+    _app()
+    source_path = tmp_path / "small-pages.pdf"
+    _create_sample_pdf(source_path)
+
+    window = MainWindow()
+    pool = _CollectingThreadPool()
+    window._thread_pool = pool
+    window._open_document(source_path)
+
+    requests = _page_render_requests(pool)
+    assert len(requests) == 1
+    assert requests[0].region is None
+    assert requests[0].is_base is False
+
+
+def test_large_page_queues_its_visible_region_then_a_base(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+
+    region_request, base_request = _page_render_requests(pool)
+
+    assert region_request.region is not None
+    assert region_request.is_base is False
+    assert region_request.zoom == window._document.state.zoom
+    assert QRect(*region_request.region).contains(_visible_page_rect(window))
+    assert base_request.region is None
+    assert base_request.is_base is True
+    assert base_request.device_pixel_ratio == 1.0
+    assert base_request.zoom < window._document.state.zoom
+    assert base_request.request_token != region_request.request_token
+
+
+def test_laying_out_large_pages_never_queues_a_whole_page(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+
+    # A discrete zoom rebuilds every label; the viewport is resized while
+    # the new pages are laid out.
+    window._apply_zoom(2.0)
+    _app().processEvents()
+    window.resize(1000, 800)
+    _app().processEvents()
+
+    requests = [
+        task._request for task in pool.tasks if hasattr(task, "_request")
+    ]
+    assert any(request.zoom == 2.0 for request in requests)
+    assert all(
+        request.region is not None or request.is_base for request in requests
+    )
+
+
+def test_large_page_shows_a_sharp_region_over_a_base(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    page_label = window._page_labels[0]
+    assert isinstance(page_label, PageSurfaceLabel)
+    plan = window._calc_page_plan(0)
+    sharp_rect = page_label.sharp_region()
+
+    assert plan is not None
+    assert sharp_rect is not None
+    shown_region = window._sharp_regions[0]
+    assert shown_region.contains(plan.needed)
+    assert shown_region.contains(_visible_page_rect(window))
+    assert shown_region != _visible_page_rect(window)
+    assert sharp_rect.toRect() == shown_region
+    assert not page_label.pixmap().isNull()
+    assert page_label.size() == QSize(1510, 2510)
+    assert 0 not in window._rendered_page_indexes
+    assert 0 in window._region_page_indexes
+    assert 0 in window._words_loaded_pages
+    assert len(page_label._page_links) == 1
+
+    # The region holds the same pixels as that part of the whole page.
+    whole_page = qimage_from_render(window._document.render_page(0))
+    sharp_image = page_label._sharp_pixmap.toImage().convertToFormat(
+        whole_page.format(),
+    )
+    assert sharp_image == whole_page.copy(shown_region)
+    assert len({sharp_image.pixel(x, 75) for x in range(60, 120)}) > 1
+
+    # The blurry base has fewer pixels than the page and is stretched
+    # over the page area of the label: text far outside the region shows
+    # at its place on the page.
+    assert page_label.pixmap().width() < 1500
+    assert _has_ink(page_label, QRect(55, 1975, 120, 35))
+    assert not _has_ink(page_label, QRect(55, 1200, 120, 35))
+
+
+def test_selection_mode_loads_words_for_a_region_page(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    window._words_loaded_pages.clear()
+
+    window._apply_text_selection_mode()
+
+    assert 0 in window._words_loaded_pages
+
+
+def test_scrolling_inside_the_region_queues_nothing(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _RecordingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    vertical_bar = window._document_scroll_area.verticalScrollBar()
+    requests = _page_render_requests(pool)
+    request_count = len(requests)
+    # The view alone first, then the view with its scroll margins, then
+    # the blurry whole page.
+    assert [request.is_base for request in requests] == [False, False, True]
+    assert QRect(*requests[1].region).contains(QRect(*requests[0].region))
+    assert requests[1].region != requests[0].region
+
+    vertical_bar.setValue(vertical_bar.value() + 20)
+
+    assert len(_page_render_requests(pool)) == request_count
+
+    vertical_bar.setValue(vertical_bar.value() + 600)
+
+    new_requests = _page_render_requests(pool)[request_count:]
+    assert len(new_requests) == 1
+    assert QRect(*new_requests[0].region).contains(_visible_page_rect(window))
+    assert window._sharp_regions[0] == QRect(*new_requests[0].region)
+
+
+def test_scrolling_while_a_region_is_pending_keeps_that_render(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    vertical_bar = window._document_scroll_area.verticalScrollBar()
+    pending_task = _pending_region_task(pool, window)
+    assert len(_region_requests(pool)) == 1
+
+    vertical_bar.setValue(vertical_bar.value() + 600)
+    vertical_bar.setValue(vertical_bar.value() + 20)
+
+    # The render on its way is neither replaced nor joined by another,
+    # although it no longer covers the view.
+    pending_region = QRect(*pending_task._request.region)
+    assert not pending_region.contains(_visible_page_rect(window))
+    assert len(_region_requests(pool)) == 1
+    assert (
+        window._pending_page_indexes[0] == pending_task._request.request_token
+    )
+
+    pending_task.run()
+    _app().processEvents()
+
+    # Its image is shown, and the view of that moment is asked for next.
+    page_label = window._page_labels[0]
+    assert page_label.sharp_region().toRect() == pending_region
+    _, next_request = _region_requests(pool)
+    assert QRect(*next_request.region).contains(_visible_page_rect(window))
+    assert window._pending_page_indexes[0] == next_request.request_token
+    assert sum(r.is_base for r in _page_render_requests(pool)) == 1
+
+
+def test_every_region_render_is_shown_while_scrolling_continues(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    vertical_bar = window._document_scroll_area.verticalScrollBar()
+    page_label = window._page_labels[0]
+    shown_regions = []
+
+    # Each render takes as long as two scroll steps of 200 pixels. That
+    # is more than the 256 pixels a region reaches past its view, so no
+    # render still covers the view when it is done.
+    for _ in range(4):
+        pending_task = _pending_region_task(pool, window)
+        pending_region = QRect(*pending_task._request.region)
+        vertical_bar.setValue(vertical_bar.value() + 200)
+        vertical_bar.setValue(vertical_bar.value() + 200)
+        assert not pending_region.contains(_visible_page_rect(window))
+        pending_task.run()
+        _app().processEvents()
+        shown_regions.append(page_label.sharp_region().toRect())
+        assert shown_regions[-1] == pending_region
+
+    # Every render reached the screen. From the second on, which has
+    # scroll margins, each still overlaps the view it arrives in.
+    assert len(set(map(QRect.getRect, shown_regions))) == 4
+    assert shown_regions[-1].intersects(_visible_page_rect(window))
+    assert len(_region_requests(pool)) == 5
+
+
+def test_region_render_from_before_a_zoom_change_skips_rasterization(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    stale_task = _pending_region_task(pool, window)
+    window._apply_zoom(2.0)
+    _app().processEvents()
+    newest_request = _region_requests(pool)[-1]
+    assert newest_request is not stale_task._request
+
+    def _unexpected_render(*_args, **_kwargs):
+        msg = "An outdated region render should be dropped before drawing."
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(
+        "plain_open_pdf.gui.views.rendering.page_rendering.render_page_region",
+        _unexpected_render,
+    )
+    stale_task.run()
+    _app().processEvents()
+
+    page_label = window._page_labels[0]
+    assert window._pending_page_indexes[0] == newest_request.request_token
+    assert page_label.sharp_region() is None
+
+
+def test_scrolling_sideways_renders_the_newly_visible_region(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _RecordingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    horizontal_bar = window._document_scroll_area.horizontalScrollBar()
+    region_before = QRect(window._sharp_regions[0])
+
+    horizontal_bar.setValue(700)
+
+    visible_rect = _visible_page_rect(window)
+    assert visible_rect.left() > 600
+    assert not region_before.contains(visible_rect)
+    assert window._sharp_regions[0].contains(visible_rect)
+    assert window._page_labels[0].sharp_region().toRect().contains(
+        visible_rect,
+    )
+
+
+def test_growing_the_viewport_renders_the_newly_visible_region(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _RecordingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    region_before = QRect(window._sharp_regions[0])
+
+    window.resize(1500, 1300)
+    _app().processEvents()
+
+    visible_rect = _visible_page_rect(window)
+    assert not region_before.contains(visible_rect)
+    assert window._sharp_regions[0].contains(visible_rect)
+    assert 0 not in window._rendered_page_indexes
+
+
+def test_ctrl_wheel_zoom_keeps_the_region_until_it_settles(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    app = _app()
+    pool = _RecordingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    page_label = window._page_labels[0]
+    labels_before = list(window._page_labels)
+    generation_before = window._generations.render
+    zoom_before = window._document.state.zoom
+    region_before = page_label.sharp_region()
+    request_count = len(_page_render_requests(pool))
+    viewport = window._document_scroll_area.viewport()
+
+    for _ in range(3):
+        wheel_event = _ctrl_wheel_event(
+            x=viewport.width() / 2,
+            y=viewport.height() / 2,
+            angle_delta_y=120,
+        )
+        assert window.eventFilter(viewport, wheel_event) is True
+    app.processEvents()
+
+    zoom_after = window._document.state.zoom
+    assert zoom_after > zoom_before
+    assert window._page_labels == labels_before
+    assert window._generations.render == generation_before
+    assert page_label.sharp_region() == region_before
+    assert page_label._sharp_zoom == zoom_before
+    assert page_label._page_zoom == zoom_after
+    assert len(_page_render_requests(pool)) == request_count
+    # Both images follow the page: the text in the region and the text
+    # on the blurry base sit at their zoomed places.
+    scale = zoom_after / zoom_before
+    assert _has_ink(
+        page_label,
+        QRect(int(55 * scale), int(60 * scale), int(120 * scale), 35),
+    )
+    assert _has_ink(
+        page_label,
+        QRect(int(55 * scale), int(1975 * scale), int(120 * scale), 35),
+    )
+    assert not _has_ink(
+        page_label,
+        QRect(int(55 * scale), int(1200 * scale), int(120 * scale), 35),
+    )
+
+    window._settle_zoom_preview()
+    app.processEvents()
+
+    new_requests = _page_render_requests(pool)[request_count:]
+    assert window._generations.render > generation_before
+    assert window._page_labels == labels_before
+    assert new_requests
+    assert all(request.region is not None for request in new_requests)
+    assert all(request.zoom == zoom_after for request in new_requests)
+    assert page_label._sharp_zoom == zoom_after
+    assert window._sharp_regions[0].contains(_visible_page_rect(window))
+
+
+def test_zooming_out_replaces_the_region_with_the_whole_page(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    app = _app()
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    page_label = window._page_labels[0]
+    assert page_label.sharp_region() is not None
+
+    # At half size the page has fewer pixels than the region threshold.
+    window._apply_zoom_preview(0.5, anchor_position=QPointF(10.0, 10.0))
+    window._settle_zoom_preview()
+    app.processEvents()
+
+    assert window._document.state.zoom == 0.5
+    assert 0 in window._rendered_page_indexes
+    assert 0 not in window._region_page_indexes
+    assert 0 not in window._sharp_regions
+    assert page_label.sharp_region() is None
+    assert page_label.pixmap().size() == QSize(750, 1250)
+    assert page_label.size() == QSize(760, 1260)
+
+
+def test_far_off_region_pages_are_evicted(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+        page_count=8,
+    )
+    first_label = window._page_labels[0]
+    assert first_label.sharp_region() is not None
+    assert not first_label.pixmap().isNull()
+
+    vertical_bar = window._document_scroll_area.verticalScrollBar()
+    vertical_bar.setValue(vertical_bar.maximum())
+
+    assert first_label.sharp_region() is None
+    assert first_label.pixmap().isNull()
+    assert first_label.text() == "Loading page 1..."
+    assert 0 not in window._region_page_indexes
+    assert 0 not in window._sharp_regions
+    assert window._page_labels[7].sharp_region() is not None
+    assert 7 in window._region_page_indexes
+
+
+def test_search_match_is_marked_at_its_place_in_a_region(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    window._find_action.trigger()
+    window._search_input.setText("alpha")
+    window._search_debounce_timer.stop()
+    window._run_search()
+    _app().processEvents()
+
+    page_label = window._page_labels[0]
+    sharp_rect = page_label.sharp_region()
+    rectangles = window._search_rectangles_for_page(0)
+    assert sharp_rect is not None
+    assert rectangles
+    x0, y0, x1, y1 = rectangles[0]
+    center = QPoint(round((x0 + x1) / 2), round((y0 + y1) / 2))
+    outside = QPoint(round(x0) - 12, round(y0) - 12)
+    origin = sharp_rect.topLeft().toPoint()
+    assert sharp_rect.toRect().contains(center)
+    assert sharp_rect.toRect().contains(outside)
+
+    plain_page = qimage_from_render(window._document.render_page(0))
+    sharp_image = page_label._sharp_pixmap.toImage()
+    base_image = page_label.pixmap().toImage()
+    base_scale = base_image.width() / 1500
+
+    assert sharp_image.pixelColor(center - origin) != plain_page.pixelColor(
+        center,
+    )
+    assert sharp_image.pixelColor(outside - origin) == plain_page.pixelColor(
+        outside,
+    )
+    # The mark on the blurry base sits over the same part of the page.
+    marked = base_image.pixelColor(
+        int(center.x() * base_scale),
+        int(center.y() * base_scale),
+    )
+    assert marked.blue() < marked.red()
+
+
+def test_dirty_large_page_is_rendered_whole_without_background_work(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    window._thread_pool = _FailingThreadPool()
+
+    window._rotate_current_page()
+
+    page_label = window._page_labels[0]
+    assert 0 in window._rendered_page_indexes
+    assert page_label.sharp_region() is None
+    assert page_label.pixmap().size() == QSize(2500, 1500)
+    assert not window._region_page_indexes
+
+
+def test_failed_region_render_clears_the_region(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    page_label = window._page_labels[0]
+    assert page_label.sharp_region() is not None
+
+    def _failing_render(*_args, **_kwargs):
+        msg = "damaged page"
+        raise ValueError(msg)
+
+    monkeypatch.setattr(
+        "plain_open_pdf.gui.views.rendering.page_rendering.render_page_region",
+        _failing_render,
+    )
+    vertical_bar = window._document_scroll_area.verticalScrollBar()
+    vertical_bar.setValue(vertical_bar.value() + 600)
+
+    assert page_label.sharp_region() is None
+    assert 0 not in window._sharp_regions
+    assert 0 not in window._pending_page_indexes
+
+
+def test_small_page_is_rendered_whole_while_pages_are_laid_out(
+    tmp_path: Path,
+) -> None:
+    _app()
+    source_path = tmp_path / "small-pages.pdf"
+    _create_sample_pdf(source_path)
+    window = MainWindow()
+    pool = _CollectingThreadPool()
+    window._thread_pool = pool
+    window._open_document(source_path)
+    pool.tasks.clear()
+    window._pending_page_indexes.clear()
+    window._page_top_offsets = []
+    window._page_bottom_offsets = []
+
+    window._handle_document_scrolled(0)
+
+    requests = _page_render_requests(pool)
+    assert len(requests) == 1
+    assert requests[0].region is None
+    assert requests[0].is_base is False
+
+
+def test_base_arriving_during_a_zoom_gesture_follows_the_page(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    app = _app()
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    page_label = window._page_labels[0]
+    base_task = next(
+        task
+        for task in pool.tasks
+        if hasattr(task, "_request") and task._request.is_base
+    )
+    anchor = QPointF(10.0, 10.0)
+
+    window._apply_zoom_preview(1.5, anchor_position=anchor)
+    assert page_label.pixmap().isNull()
+    base_task.run()
+    app.processEvents()
+    assert not page_label.pixmap().isNull()
+    assert _has_ink(page_label, QRect(80, 2960, 190, 55))
+
+    window._apply_zoom_preview(2.0, anchor_position=anchor)
+
+    assert window._document.state.zoom == 2.0
+    assert page_label.size() == QSize(3010, 5010)
+    assert _has_ink(page_label, QRect(110, 3950, 250, 70))
+    assert not _has_ink(page_label, QRect(80, 2960, 190, 55))
+
+
+def test_page_that_fails_to_render_keeps_its_message_while_scrolling(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    def _failing_render(*_args, **_kwargs):
+        msg = "a page image of this size"
+        raise ValueError(msg)
+
+    # Only the sharp region fails, as it does for a page whose whole
+    # image is over the engine's size limit; the small blurry page works.
+    monkeypatch.setattr(
+        "plain_open_pdf.gui.views.rendering.page_rendering.render_page_region",
+        _failing_render,
+    )
+    pool = _RecordingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    page_label = window._page_labels[0]
+    vertical_bar = window._document_scroll_area.verticalScrollBar()
+    request_count = len(pool.tasks)
+    message = page_label.text()
+    assert message.startswith("Failed to render page 1")
+    assert page_label.pixmap().isNull()
+    assert not any(r.is_base for r in _page_render_requests(pool))
+
+    for _ in range(5):
+        vertical_bar.setValue(vertical_bar.value() + 40)
+
+        assert len(pool.tasks) == request_count
+        assert page_label.text() == message
+        assert page_label.pixmap().isNull()
+        assert page_label.sharp_region() is None
+
+    # A new zoom is a new chance: the page is asked for again.
+    window._apply_zoom(1.25)
+    _app().processEvents()
+    assert len(_region_requests(pool)) > 0
+    assert len(pool.tasks) > request_count
+
+
+def test_blurry_page_arriving_after_a_failure_leaves_the_message(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    page_label = window._page_labels[0]
+    region_task = _pending_region_task(pool, window)
+    base_task = next(
+        task
+        for task in pool.tasks
+        if hasattr(task, "_request")
+        and task._request.is_base
+        and task._request.page_index == 0
+    )
+
+    def _failing_render(*_args, **_kwargs):
+        msg = "a page image of this size"
+        raise ValueError(msg)
+
+    monkeypatch.setattr(
+        "plain_open_pdf.gui.views.rendering.page_rendering.render_page_region",
+        _failing_render,
+    )
+    region_task.run()
+    base_task.run()
+    _app().processEvents()
+
+    assert page_label.text().startswith("Failed to render page 1")
+    assert page_label.pixmap().isNull()
+
+
+def test_page_mostly_covered_by_the_view_is_whole_before_it_scrolls_in(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    # With this share a view of the test window, plus its margins, covers
+    # enough of a page to render it whole.
+    monkeypatch.setattr(region_geometry, "REGION_MAX_SHARE", 0.1)
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+
+    # Page 1 is still below the view. It gets the same whole-page render
+    # as page 0, not a blurry stand-in.
+    assert window._visible_label_range() == (0, 0)
+    assert window._is_large_page(1)
+    for page_index in (0, 1):
+        (request,) = _page_render_requests(pool, page_index=page_index)
+        assert request.region is None
+        assert request.is_base is False
+
+
+def test_large_page_is_not_rendered_whole_while_pages_are_laid_out(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    pool = _CollectingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    pool.tasks.clear()
+    window._pending_page_indexes.clear()
+    window._pending_base_pages.clear()
+    window._page_top_offsets = []
+    window._page_bottom_offsets = []
+
+    window._handle_document_scrolled(0)
+
+    assert window._is_large_page(0)
+    assert pool.tasks == []
+
+
+def test_search_match_is_marked_at_its_place_in_a_scrolled_region(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    plain_page = qimage_from_render(window._document.render_page(0))
+    _search_open_document(window, "omega")
+    window._document_scroll_area.horizontalScrollBar().setValue(600)
+    window._document_scroll_area.verticalScrollBar().setValue(1700)
+    _app().processEvents()
+
+    page_label = window._page_labels[0]
+    sharp_rect = page_label.sharp_region()
+    (rectangle,) = window._search_rectangles_for_page(0)
+    assert sharp_rect is not None
+    x0, y0, x1, y1 = rectangle
+    center = QPoint(round((x0 + x1) / 2), round((y0 + y1) / 2))
+    outside = QPoint(round(x0) - 12, round(y0) - 12)
+    origin = sharp_rect.topLeft().toPoint()
+    # The region starts well inside the page in both directions.
+    assert origin.x() >= 64
+    assert origin.y() >= 64
+    assert sharp_rect.toRect().contains(center)
+    assert sharp_rect.toRect().contains(outside)
+
+    sharp_image = page_label._sharp_pixmap.toImage()
+    marked = sharp_image.pixelColor(center - origin)
+    assert marked != plain_page.pixelColor(center)
+    assert marked.blue() < marked.red()
+    assert sharp_image.pixelColor(outside - origin) == plain_page.pixelColor(
+        outside,
+    )
+
+
+def test_region_landing_during_a_zoom_gesture_keeps_its_own_zoom(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    app = _app()
+    window = _open_large_page_window(
+        monkeypatch,
+        tmp_path,
+        _ImmediateThreadPool(),
+    )
+    plain_page = qimage_from_render(window._document.render_page(0))
+    _search_open_document(window, "gamma")
+    # From here on renders wait until the test runs them. Scrolling to
+    # the match asks for a region that starts far down the page.
+    pool = _CollectingThreadPool()
+    window._thread_pool = pool
+    window._document_scroll_area.verticalScrollBar().setValue(1900)
+    region_task = _pending_region_task(pool, window)
+    page_label = window._page_labels[0]
+    assert region_task._request.region[1] >= 64
+
+    window._apply_zoom_preview(1.5, anchor_position=QPointF(10.0, 10.0))
+    region_task.run()
+    app.processEvents()
+
+    # The region is placed at the zoom it was rendered for and stretched
+    # by the label; it does not count as covering the view at the new
+    # zoom.
+    assert window._document.state.zoom == 1.5
+    assert page_label._sharp_zoom == 1.0
+    assert page_label._page_zoom == 1.5
+    assert page_label.sharp_region().toRect() == QRect(
+        *region_task._request.region,
+    )
+    assert not window._sharp_regions[0].contains(
+        QRect(*region_task._request.region),
+    )
+
+    # The search mark sits on the matched text inside the region image.
+    (rectangle,) = window._search_rectangles_for_page(0)
+    x0, y0, x1, y1 = rectangle
+    center = QPoint(round((x0 + x1) / 2), round((y0 + y1) / 2))
+    scaled_center = QPoint(round(center.x() * 1.5), round(center.y() * 1.5))
+    origin = page_label.sharp_region().topLeft().toPoint()
+    sharp_image = page_label._sharp_pixmap.toImage()
+    marked = sharp_image.pixelColor(center - origin)
+    assert marked != plain_page.pixelColor(center)
+    assert marked.blue() < marked.red()
+    assert sharp_image.pixelColor(
+        scaled_center - origin,
+    ) == plain_page.pixelColor(scaled_center)
+
+
+def test_zooming_in_by_gesture_replaces_the_coarse_page_image(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    app = _app()
+    pool = _RecordingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    page_label = window._page_labels[0]
+    anchor = QPointF(10.0, 10.0)
+
+    # At this size the page is rendered whole, with few pixels.
+    window._apply_zoom_preview(0.4, anchor_position=anchor)
+    window._settle_zoom_preview()
+    app.processEvents()
+    assert 0 in window._rendered_page_indexes
+    assert page_label.pixmap().size() == QSize(600, 1000)
+    request_count = len(_page_render_requests(pool))
+
+    window._apply_zoom_preview(2.0, anchor_position=anchor)
+    window._settle_zoom_preview()
+    app.processEvents()
+
+    # The page is shown in part now. The small image from before would
+    # be far coarser than the blurry page a freshly opened page gets.
+    new_requests = _page_render_requests(pool)[request_count:]
+    assert 0 not in window._rendered_page_indexes
+    assert page_label.sharp_region() is not None
+    assert sum(request.is_base for request in new_requests) == 1
+    base_pixmap = page_label.pixmap()
+    assert base_pixmap.width() * base_pixmap.height() > 1_300_000
+    assert _has_ink(page_label, QRect(110, 3950, 250, 70))
+
+    # Scrolling on does not ask for the blurry page again.
+    vertical_bar = window._document_scroll_area.verticalScrollBar()
+    vertical_bar.setValue(vertical_bar.value() + 900)
+    later_requests = _page_render_requests(pool)[request_count:]
+    assert sum(request.is_base for request in later_requests) == 1
+
+
+def test_zoom_gesture_renders_nothing_when_shrinking_pages_move_the_view(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    app = _app()
+    pool = _RecordingThreadPool()
+    window = _open_large_page_window(monkeypatch, tmp_path, pool)
+    scroll_area = window._document_scroll_area
+    scroll_area.verticalScrollBar().setValue(
+        scroll_area.verticalScrollBar().maximum(),
+    )
+    scroll_area.horizontalScrollBar().setValue(
+        scroll_area.horizontalScrollBar().maximum(),
+    )
+    app.processEvents()
+    request_count = len(pool.tasks)
+    rendered_before = set(window._rendered_page_indexes)
+    anchor = QPointF(10.0, 10.0)
+
+    # Each step shrinks the pages, which pulls the scroll bars back. The
+    # last step is small enough for whole-page rendering.
+    for zoom in (0.9, 0.6, 0.5):
+        window._apply_zoom_preview(zoom, anchor_position=anchor)
+
+        assert len(pool.tasks) == request_count
+        assert window._rendered_page_indexes == rendered_before
+
+    window._settle_zoom_preview()
+    app.processEvents()
+
+    new_requests = [task._request for task in pool.tasks[request_count:]]
+    assert new_requests
+    assert all(request.zoom == 0.5 for request in new_requests)
+
+
+@pytest.mark.parametrize(
+    ("points", "zoom", "ratio"),
+    [
+        (1500.0, 1.0, 1.0),
+        (612.0, 4.0, 1.75),
+        (595.3, 2.6, 1.75),
+        (841.89, 3.17, 1.5),
+        (100.2, 1.37, 1.25),
+        (100.9, 1.0, 2.0),
+    ],
+)
+@pytest.mark.parametrize("is_whole_page_size", [False, True])
+def test_only_regions_starting_on_the_page_image_are_asked_for(
+    points: float,
+    zoom: float,
+    ratio: float,
+    *,
+    is_whole_page_size: bool,
+) -> None:
+    _app()
+    # What the engine makes of the page: its sides rounded up.
+    image_width = math.ceil(points * zoom * ratio)
+    image_height = math.ceil(points * 1.5 * zoom * ratio)
+    # A label is sized from the page before its render, and again from
+    # the whole-page image once that arrives.
+    if is_whole_page_size:
+        content = QSize(round(image_width / ratio), round(image_height / ratio))
+    else:
+        content = QSize(
+            *display_size_for_page_size((points, points * 1.5), zoom=zoom),
+        )
+    page_label = PageSurfaceLabel()
+    page_label.setFixedSize(
+        content.width() + PAGE_CONTENT_CHROME,
+        content.height() + PAGE_CONTENT_CHROME,
+    )
+    planned = region_queue._calc_page_pixel_size(page_label, ratio)
+    assert planned.width() >= image_width
+    assert planned.height() >= image_height
+
+    def _is_asked_for(left: int, top: int) -> bool:
+        return region_queue._is_region_on_page(
+            QRect(left, top, 64, 64),
+            page_label,
+            ratio,
+        )
+
+    lefts = [x for x in range(planned.width() + 1) if _is_asked_for(x, 0)]
+    tops = [y for y in range(planned.height() + 1) if _is_asked_for(0, y)]
+
+    # Every start that is asked for lies on the image the engine makes,
+    # and only the last few pixels of the page are given up for that.
+    slack = math.ceil(2 * ratio) + 3
+    assert lefts == list(range(len(lefts)))
+    assert tops == list(range(len(tops)))
+    assert image_width - slack <= lefts[-1] < image_width
+    assert image_height - slack <= tops[-1] < image_height
+    assert not _is_asked_for(lefts[-1], tops[-1] + 1)
+    assert not region_queue._is_region_on_page(QRect(), page_label, ratio)

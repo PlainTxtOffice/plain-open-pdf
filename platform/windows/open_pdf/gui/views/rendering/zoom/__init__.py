@@ -1,1 +1,0 @@
-"""Document zoom presentation package."""

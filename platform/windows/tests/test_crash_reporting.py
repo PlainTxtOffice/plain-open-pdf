@@ -13,13 +13,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-import open_pdf.config.crash_reporting as crash_reporting
+import plain_open_pdf.config.crash_reporting as crash_reporting
 
-from open_pdf.config.crash_reporting import (
+from plain_open_pdf.config.crash_reporting import (
     crash_message,
     install_crash_handlers,
 )
-from open_pdf.gui.views.dialogs.crash_dialog import QtCrashNotifier
+from plain_open_pdf.gui.views.dialogs.crash_dialog import QtCrashNotifier
 
 
 @pytest.fixture(autouse=True)

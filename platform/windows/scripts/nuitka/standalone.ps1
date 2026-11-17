@@ -1,5 +1,5 @@
 #requires -Version 7.3
-# Build Open PDF; paths resolve from platform/windows, not the caller.
+# Build Plain Open PDF; paths resolve from platform/windows, not the caller.
 [CmdletBinding()]
 param(
     [string]$PythonExecutable = '.venv/Scripts/python.exe',
@@ -36,12 +36,11 @@ function Get-BuildConfiguration {
     $metadata = & $pythonPath -X utf8 -c 'import json,sys,tomllib; print(json.dumps(tomllib.load(open(sys.argv[1], "rb"))))' $pyprojectPath
     if ($LASTEXITCODE -ne 0) { throw "Cannot read project metadata from $pyprojectPath." }
     $metadata = $metadata | ConvertFrom-Json
-    $product = $metadata.tool.'open-pdf'.packaging
+    $product = $metadata.tool.'plain-open-pdf'.packaging
     foreach ($key in @('title', 'company-name', 'copyright')) {
-        if (-not $product.$key) { throw "Set $key under [tool.open-pdf.packaging] in $pyprojectPath." }
+        if (-not $product.$key) { throw "Set $key under [tool.plain-open-pdf.packaging] in $pyprojectPath." }
     }
     $version = $metadata.project.version
-    $description = ($metadata.project.description -split '\s+') -join ' '
     if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or
         @($version.Split('.') | Where-Object { [decimal]$_ -gt 65535 }).Count) {
         throw "Project version '$version' is not valid Windows version metadata."
@@ -50,18 +49,21 @@ function Get-BuildConfiguration {
         throw 'Project name must be a lowercase hyphenated slug for executable filenames.'
     }
     # The version resource ships to users, so template placeholders must not.
-    foreach ($value in @($version, $description, $product.title, $product.'company-name', $product.copyright)) {
+    foreach ($value in @($version, $product.title, $product.'company-name', $product.copyright)) {
         if ($value -match 'replace-me') { throw "Project metadata '$value' is still a placeholder." }
     }
-    if (-not $OutputFilename) { $OutputFilename = "$($metadata.project.name).exe" }
+    # Windows knows an application by its executable's file name, so the
+    # debug build gets its own, or it would be taken for the installed one.
+    $suffix = if ($Variant -eq 'standalone-debug') { '-debug' } else { '' }
+    if (-not $OutputFilename) { $OutputFilename = "$($metadata.project.name)$suffix.exe" }
     if ([IO.Path]::GetFileName($OutputFilename) -ne $OutputFilename -or
         [IO.Path]::GetExtension($OutputFilename) -ne '.exe') {
         throw 'OutputFilename must be a filename ending in .exe, without directories.'
     }
     if (-not $OutputDirectory) { $OutputDirectory = "build/$Variant" }
-    $icon = Join-Path $ProjectRoot 'assets/open_pdf.ico'
+    $icon = Join-Path $ProjectRoot 'assets/plain_open_pdf.ico'
     if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
-        throw "Missing icon: $icon. Generate it from assets/icons/open_pdf.svg at the repository root."
+        throw "Missing icon: $icon. Generate it from assets/icons/plain_open_pdf.svg at the repository root."
     }
     # The DejaVu fonts are git-ignored downloads; bundle them only when present.
     $fonts = @(Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'assets/fonts') -Filter '*.ttf' -File -ErrorAction SilentlyContinue)
@@ -69,9 +71,9 @@ function Get-BuildConfiguration {
         Python = $pythonPath; Output = Resolve-ProjectPath $ProjectRoot $OutputDirectory
         Filename = $OutputFilename; Variant = $Variant
         Report = Join-Path $ProjectRoot "build/nuitka-$Variant-report.xml"
-        Title = $product.title; Version = $version; Description = $description
+        Title = $product.title; Version = $version
         Company = $product.'company-name'; Copyright = $product.copyright
-        AppDataName = $metadata.tool.'open-pdf'.'app-data-dir'; Icon = $icon; Fonts = $fonts
+        AppDataName = $metadata.tool.'plain-open-pdf'.'app-data-dir'; Icon = $icon; Fonts = $fonts
         RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $ProjectRoot '../..'))
     }
 }
@@ -116,10 +118,12 @@ function Get-NuitkaArguments {
         "--report=$($Configuration.Report)",
         "--windows-icon-from-ico=$($Configuration.Icon)",
         "--product-name=$($Configuration.Title)", "--file-version=$($Configuration.Version)",
-        "--product-version=$($Configuration.Version)", "--file-description=$($Configuration.Description)",
+        # Windows names the app by its file description in Open With and
+        # Task Manager, so it carries the title, not the long description.
+        "--product-version=$($Configuration.Version)", "--file-description=$($Configuration.Title)",
         "--company-name=$($Configuration.Company)", "--copyright=$($Configuration.Copyright)",
         # Bundle data files one by one so screenshots and local state never ship.
-        "--include-data-files=$($Configuration.Icon)=assets/open_pdf.ico"
+        "--include-data-files=$($Configuration.Icon)=assets/plain_open_pdf.ico"
     )
     foreach ($font in $Configuration.Fonts) {
         $arguments += "--include-data-files=$($font.FullName)=assets/fonts/$($font.Name)"
@@ -152,12 +156,17 @@ function Show-PersistedData {
     $localRoot = $env:LOCALAPPDATA
     if (-not $localRoot) { $localRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'AppData/Local' }
     $appDataName = $Configuration.AppDataName
-    if ($appDataName -ne 'open-pdf') {
+    if ($appDataName -ne 'plain-open-pdf') {
         throw "Unexpected application data folder '$appDataName'; review the reset targets before building."
     }
-    $allowed = @($appDataName, "$appDataName-data")
-    $paths = @(Join-Path $localRoot $appDataName)
-    if ($Portable) { $paths += Join-Path $Configuration.Output "$appDataName-data" }
+    # The names after the current one are pre-rename names: a compiled build
+    # adopts such a folder at startup, so a reset must cover them too. Keep
+    # them in sync with LEGACY_*_DIR_NAMES in plain_open_pdf/config/path_handler.py.
+    $localNames = @($appDataName, 'open-pdf', 'Open PDF')
+    $portableNames = @("$appDataName-data", 'open-pdf-data', 'Open PDF Data')
+    $allowed = $localNames + $portableNames
+    $paths = @($localNames | ForEach-Object { Join-Path $localRoot $_ })
+    if ($Portable) { $paths += $portableNames | ForEach-Object { Join-Path $Configuration.Output $_ } }
     foreach ($path in $paths) {
         $absolutePath = [IO.Path]::GetFullPath($path)
         if (-not (Test-Path -LiteralPath $absolutePath)) { continue }
@@ -289,15 +298,17 @@ $variant = if ($Console) { 'standalone-debug' } else { 'standalone' }
 $config = Get-BuildConfiguration $projectRoot $PythonExecutable $OutputDirectory $OutputFilename $variant
 Write-Host "Building $($config.Title): $variant"
 if ($UseCurrentDefaultPaths) {
-    throw 'Open PDF has no bundled defaults file, so -UseCurrentDefaultPaths is unsupported; live settings are never bundled.'
+    throw 'Plain Open PDF has no bundled defaults file, so -UseCurrentDefaultPaths is unsupported; live settings are never bundled.'
 }
 $Commercial = Test-CommercialNuitka $config.Python
+# Build the PDF engine into the build interpreter, where Nuitka finds it.
+& (Join-Path $PSScriptRoot '../engine/build.ps1') -PythonExecutable $config.Python
 Show-PersistedData $config -ResetRuntimeDefaults:$ResetRuntimeDefaults
 $consoleMode = if ($Console) { 'force' } else { 'disable' }
 $compilerArguments = Get-CompilerArguments $config $Compiler $MsvcVersion
 $nuitkaArguments = @(Get-NuitkaArguments $config $consoleMode $compilerArguments $Jobs $Lto `
     -LowMemory:$LowMemory -ShowBackendCommands:$ShowBackendCommands -Commercial:$Commercial -DebugBuild:$Console)
-$nuitkaArguments += @('--standalone', 'open_pdf/main.py')
+$nuitkaArguments += @('--standalone', 'plain_open_pdf/main.py')
 Invoke-Nuitka $config $nuitkaArguments $projectRoot
 $distPath = Join-Path $config.Output 'main.dist'
 Invoke-PrivacyScan $config $projectRoot $distPath

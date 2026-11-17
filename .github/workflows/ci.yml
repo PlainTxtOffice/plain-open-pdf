@@ -47,11 +47,15 @@ jobs:
       - name: Install project and developer dependencies
         run: .venv/Scripts/python.exe -m pip install ".[dev]"
 
+      - name: Build the PDF engine
+        # Uses the runner's Rust toolchain; the app and tests import it.
+        run: ./scripts/engine/build.ps1
+
       - name: Lint Python
         run: .venv/Scripts/python.exe -m ruff check .
 
       - name: Check types
-        run: .venv/Scripts/python.exe -m mypy open_pdf
+        run: .venv/Scripts/python.exe -m mypy plain_open_pdf
 
       - name: Run tests
         run: .venv/Scripts/python.exe -m pytest

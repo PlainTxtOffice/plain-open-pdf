@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from open_pdf.adapters.document.file_identity import references_same_file
+from plain_open_pdf.adapters.document.file_identity import references_same_file
 
 
 def test_same_existing_file_compares_equal(tmp_path: Path) -> None:

@@ -1,10 +1,10 @@
 """Tests for the OCR result collaborator."""
 
 import pytest
-from open_pdf.application.document.text.ocr import recognize_page
+from plain_open_pdf.application.document.text.ocr import recognize_page
 
-from open_pdf.domains.document.models import PdfOcrPageResult
-from open_pdf.domains.document.pages.text.ocr import OcrResults
+from plain_open_pdf.domains.document.models import PdfOcrPageResult
+from plain_open_pdf.domains.document.pages.text.ocr import OcrResults
 
 
 def _result(page_index: int) -> PdfOcrPageResult:

@@ -1,33 +1,30 @@
 from pathlib import Path
 
-import pymupdf
+import plain_open_pdf_engine
 import pytest
 
-from open_pdf.domains.document.errors import (
+from engine_pdfs import (
+    PdfBuilder,
+    create_named_destination_pdf,
+    create_pdf,
+    edited_pdf,
+    open_pdf,
+)
+from plain_open_pdf.adapters.document.engine.document import EngineDocument
+from plain_open_pdf.adapters.document.engine.rendering import (
+    render_page,
+    render_page_region,
+)
+from plain_open_pdf.domains.document.errors import (
     IncorrectPasswordError,
     PasswordRequiredError,
 )
-from open_pdf.domains.document.models import PdfOcrPageResult
-from open_pdf.application.document.session import PdfDocument
+from plain_open_pdf.domains.document.models import PdfOcrPageResult
+from plain_open_pdf.application.document.session import PdfDocument
 
 
 def create_sample_pdf(path: Path) -> None:
-    document = pymupdf.open()
-
-    page_one = document.new_page()
-    page_one.insert_text((72, 72), "alpha beta gamma")
-
-    page_two = document.new_page()
-    page_two.insert_text((72, 72), "delta beta epsilon")
-
-    document.save(path)
-    document.close()
-
-
-def info_dictionary_xref(document: pymupdf.Document) -> int:
-    value_type, value = document.xref_get_key(-1, "Info")
-    assert value_type == "xref"
-    return int(value.split()[0])
+    create_pdf(path, ["alpha beta gamma", "delta beta epsilon"])
 
 
 def add_custom_info_property(
@@ -36,109 +33,55 @@ def add_custom_info_property(
     name: str,
     value: str,
 ) -> None:
-    document = pymupdf.open(path)
-    try:
-        document.set_metadata({"title": "Metadata sample"})
-        info_xref = info_dictionary_xref(document)
-        document.xref_set_key(
-            info_xref,
-            name,
-            pymupdf.get_pdf_str(value),
-        )
-        document.saveIncr()
-    finally:
-        document.close()
+    with edited_pdf(path) as document:
+        document.set_information("Title", "Metadata sample")
+        document.set_information(name, value)
 
 
 def create_three_page_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        for page_number in range(1, 4):
-            page = document.new_page()
-            page.insert_text((72, 72), f"page {page_number}")
-
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(path, [f"page {page_number}" for page_number in range(1, 4)])
 
 
 def create_sized_pdf(path: Path, *, width: float, height: float) -> None:
-    document = pymupdf.open()
-    try:
-        page = document.new_page(width=width, height=height)
-        page.insert_text((20, 40), "sized page")
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(
+        path,
+        ["sized page"],
+        width=width,
+        height=height,
+        point=(20.0, 40.0),
+    )
 
 
 def create_image_only_pdf(path: Path, *, page_count: int = 1) -> None:
-    document = pymupdf.open()
-    try:
-        for _ in range(page_count):
-            document.new_page()
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(path, [""] * page_count)
 
 
 def create_native_and_blank_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        page_one = document.new_page()
-        page_one.insert_text((72, 72), "native needle")
-        document.new_page()
-        document.save(path)
-    finally:
-        document.close()
+    create_pdf(path, ["native needle", ""])
 
 
 def create_password_protected_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        page = document.new_page()
-        page.insert_text((72, 72), "locked")
-        document.save(
-            path,
-            encryption=pymupdf.PDF_ENCRYPT_AES_256,
-            owner_pw="owner-pass",
-            user_pw="user-pass",
-        )
-    finally:
-        document.close()
+    builder = PdfBuilder()
+    builder.new_page()
+    builder.insert_text(0, (72, 72), "locked")
+    builder.save(path, user_password="user-pass", owner_password="owner-pass")
 
 
 def create_linked_pdf(path: Path) -> None:
-    document = pymupdf.open()
-    try:
-        document.new_page()
-        document.new_page()
-
-        page_one = document.load_page(0)
-        page_two = document.load_page(1)
-        page_two.insert_text((72, 72), "target page")
-
-        page_one.insert_text((72, 72), "external link")
-        page_one.insert_link(
-            {
-                "kind": pymupdf.LINK_URI,
-                "from": pymupdf.Rect(72, 72, 152, 96),
-                "uri": "https://example.com/spec",
-            },
-        )
-        page_one.insert_text((72, 140), "internal link")
-        page_one.insert_link(
-            {
-                "kind": pymupdf.LINK_GOTO,
-                "from": pymupdf.Rect(72, 140, 152, 164),
-                "page": 1,
-                "to": pymupdf.Point(20, 250),
-            },
-        )
-
-        document.save(path)
-    finally:
-        document.close()
+    builder = PdfBuilder()
+    builder.new_page()
+    builder.new_page()
+    builder.insert_text(1, (72, 72), "target page")
+    builder.insert_text(0, (72, 72), "external link")
+    builder.insert_uri_link(0, (72, 72, 152, 96), "https://example.com/spec")
+    builder.insert_text(0, (72, 140), "internal link")
+    builder.insert_page_link(
+        0,
+        (72, 140, 152, 164),
+        target_page=1,
+        point=(20, 250),
+    )
+    builder.save(path)
 
 
 def build_ocr_page_result(page_index: int, text: str) -> PdfOcrPageResult:
@@ -175,7 +118,7 @@ class _FakeOcrBackend:
 
     def recognize_page(
         self,
-        document: pymupdf.Document,
+        document: EngineDocument,
         page_index: int,
         *,
         language_codes: tuple[str, ...],
@@ -268,14 +211,9 @@ def test_save_writes_redaction_back_to_opened_file(tmp_path: Path) -> None:
 
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        page_text = document.load_page(0).get_text("text")
-        assert isinstance(page_text, str)
-        assert "alpha" not in page_text
-        assert "beta" in page_text
-    finally:
-        document.close()
+    page_text = open_pdf(pdf_path).page_text(0)
+    assert "alpha" not in page_text
+    assert "beta" in page_text
 
 
 def test_run_ocr_uses_fallback_text_and_words_without_marking_dirty(
@@ -359,6 +297,62 @@ def test_render_page_scales_raster_for_device_pixel_ratio(
     assert (hidpi_render.width, hidpi_render.height) == (300, 150)
 
 
+@pytest.mark.parametrize("device_pixel_ratio", [1.0, 1.5])
+def test_render_page_region_matches_the_same_part_of_the_whole_page(
+    tmp_path: Path,
+    device_pixel_ratio: float,
+) -> None:
+    pdf_path = tmp_path / "region.pdf"
+    create_sized_pdf(pdf_path, width=200, height=100)
+    document = EngineDocument.open(pdf_path)
+    left, top, width, height = 30, 40, 150, 160
+
+    whole = render_page(
+        document,
+        0,
+        zoom=2.0,
+        device_pixel_ratio=device_pixel_ratio,
+    )
+    region = render_page_region(
+        document,
+        0,
+        zoom=2.0,
+        device_pixel_ratio=device_pixel_ratio,
+        region=(left, top, width, height),
+    )
+    document.close()
+
+    expected_rows = [
+        whole.samples[
+            row * whole.stride + left * whole.channels : row * whole.stride
+            + (left + width) * whole.channels
+        ]
+        for row in range(top, top + height)
+    ]
+    assert (region.width, region.height) == (width, height)
+    assert region.channels == whole.channels
+    assert region.samples == b"".join(expected_rows)
+    assert len(set(region.samples)) > 1
+
+
+def test_render_page_region_is_cut_at_the_page_edge(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "region-edge.pdf"
+    create_sized_pdf(pdf_path, width=200, height=100)
+    document = EngineDocument.open(pdf_path)
+
+    region = render_page_region(
+        document,
+        0,
+        zoom=1.0,
+        region=(150, 60, 500, 500),
+    )
+    with pytest.raises(plain_open_pdf_engine.PdfError):
+        render_page_region(document, 0, zoom=1.0, region=(200, 0, 10, 10))
+    document.close()
+
+    assert (region.width, region.height) == (50, 40)
+
+
 def test_open_document_rejects_password_protected_pdf(
     tmp_path: Path,
 ) -> None:
@@ -415,7 +409,7 @@ def test_page_links_returns_external_and_internal_targets(
         None,
     ]
     assert [link.target_page_index for link in links] == [None, 1]
-    assert [link.target_point for link in links] == [None, (20.0, 250.0)]
+    assert [link.target_point for link in links] == [None, (20.0, 592.0)]
     assert links[0].bounds == (72.0, 72.0, 152.0, 96.0)
     assert links[1].bounds == (72.0, 140.0, 152.0, 164.0)
 
@@ -433,110 +427,72 @@ def test_page_link_target_position_resolves_pdf_destination_at_current_zoom(
     assert service.page_link_target_position(
         target_page_index=link.target_page_index,
         target_point=link.target_point,
-    ) == (20.0, 592.0)
+    ) == (20.0, 250.0)
 
 
-def test_page_links_preserve_xyz_destination_zoom(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
+def test_page_links_preserve_xyz_destination_zoom(tmp_path: Path) -> None:
     pdf_path = tmp_path / "xyz-link.pdf"
-    create_sample_pdf(pdf_path)
+    builder = PdfBuilder()
+    builder.new_page()
+    builder.new_page()
+    builder.insert_page_link(
+        0,
+        (72, 72, 152, 96),
+        target_page=1,
+        point=(20, 250),
+        zoom=2.25,
+    )
+    builder.save(pdf_path)
 
     service = PdfDocument()
     service.open_document(pdf_path)
-
-    def _fake_get_links(page: pymupdf.Page) -> list[dict[str, object]]:
-        if page.number == 0:
-            return [
-                {
-                    "from": pymupdf.Rect(72, 72, 152, 96),
-                    "kind": pymupdf.LINK_GOTO,
-                    "page": 1,
-                    "to": pymupdf.Point(20, 250),
-                    "zoom": 2.25,
-                },
-            ]
-        return []
-
-    monkeypatch.setattr(pymupdf.Page, "get_links", _fake_get_links)
 
     link = service.page_links(0)[0]
 
     assert link.target_page_index == 1
-    assert link.target_point == (20.0, 250.0)
+    assert link.target_point == (20.0, 592.0)
     assert link.target_zoom == 2.25
     assert link.target_fit == "XYZ"
 
 
-def test_page_links_preserve_named_destinations(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
+def test_page_links_resolve_named_destinations(tmp_path: Path) -> None:
     pdf_path = tmp_path / "named-links.pdf"
-    create_sample_pdf(pdf_path)
+    create_named_destination_pdf(pdf_path)
 
     service = PdfDocument()
     service.open_document(pdf_path)
-
-    def _fake_get_links(page: pymupdf.Page) -> list[dict[str, object]]:
-        if page.number == 0:
-            return [
-                {
-                    "from": pymupdf.Rect(72, 72, 152, 96),
-                    "nameddest": "chapter-2",
-                },
-            ]
-        return []
-
-    monkeypatch.setattr(pymupdf.Page, "get_links", _fake_get_links)
 
     links = service.page_links(0)
 
     assert len(links) == 1
-    assert links[0].named_destination == "chapter-2"
+    assert links[0].target_page_index == 1
+    assert links[0].target_point == (20.0, 592.0)
     assert links[0].uri is None
     assert links[0].file_path is None
-    assert links[0].target_page_index is None
 
 
 def test_resolve_page_link_target_resolves_named_destinations(
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     pdf_path = tmp_path / "named-target.pdf"
-    create_sample_pdf(pdf_path)
+    create_named_destination_pdf(pdf_path)
 
     service = PdfDocument()
     service.open_document(pdf_path)
-
-    def _fake_resolve_link(
-        document: pymupdf.Document,
-        uri: str | None = None,
-        chapters: int = 0,
-    ) -> tuple[int, float, float]:
-        del document, chapters
-        if uri == "#nameddest=chapter-2":
-            return 1, 20.0, 250.0
-        return -1, 0.0, 0.0
-
-    monkeypatch.setattr(pymupdf.Document, "resolve_link", _fake_resolve_link)
 
     assert service.resolve_page_link_target(
         target_page_index=None,
         target_point=None,
         named_destination="chapter-2",
-    ) == (1, (20.0, 592.0))
+    ) == (1, (20.0, 250.0))
 
 
 def test_outline_items_returns_pdf_bookmarks(tmp_path: Path) -> None:
     pdf_path = tmp_path / "outline.pdf"
     create_sample_pdf(pdf_path)
 
-    document = pymupdf.open(pdf_path)
-    document.set_toc([[1, "Intro", 1], [2, "Second page", 2]])
-    document.saveIncr()
-    document.close()
+    with edited_pdf(pdf_path) as document:
+        document.set_outline([(1, "Intro", 0), (2, "Second page", 1)])
 
     service = PdfDocument()
     service.open_document(pdf_path)
@@ -567,11 +523,7 @@ def test_save_writes_changes_back_to_opened_file(tmp_path: Path) -> None:
 
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        assert document.load_page(0).rotation == 90
-    finally:
-        document.close()
+    assert open_pdf(pdf_path).pages[0].rotation == 90
 
 
 def test_document_notes_are_embedded_and_persist_after_save(
@@ -596,12 +548,9 @@ def test_document_notes_are_embedded_and_persist_after_save(
     assert reopened_service.notes_text() == "# Notes\n\nRemember this."
     assert reopened_service.is_dirty() is False
 
-    document = pymupdf.open(pdf_path)
-    try:
-        assert "notes.txt" in document.embfile_names()
-        assert "notes.md" not in document.embfile_names()
-    finally:
-        document.close()
+    names = [attachment.name for attachment in open_pdf(pdf_path).attachments()]
+    assert "notes.txt" in names
+    assert "notes.md" not in names
 
 
 def test_successive_note_edits_persist_complete_text(tmp_path: Path) -> None:
@@ -636,12 +585,7 @@ def test_clearing_document_notes_removes_embedded_attachment(
     service.save()
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        assert "notes.txt" not in document.embfile_names()
-        assert "notes.md" not in document.embfile_names()
-    finally:
-        document.close()
+    assert open_pdf(pdf_path).attachments() == []
 
 
 def test_legacy_markdown_notes_migrate_to_plain_text_on_save(
@@ -649,10 +593,8 @@ def test_legacy_markdown_notes_migrate_to_plain_text_on_save(
 ) -> None:
     pdf_path = tmp_path / "legacy-notes.pdf"
     create_sample_pdf(pdf_path)
-    document = pymupdf.open(pdf_path)
-    document.embfile_add("notes.md", b"legacy note")
-    document.saveIncr()
-    document.close()
+    with edited_pdf(pdf_path) as document:
+        document.add_attachment("notes.md", b"legacy note")
 
     service = PdfDocument()
     service.open_document(pdf_path)
@@ -663,14 +605,11 @@ def test_legacy_markdown_notes_migrate_to_plain_text_on_save(
     service.save()
     service.close_document()
 
-    migrated_document = pymupdf.open(pdf_path)
-    try:
-        assert migrated_document.embfile_get("notes.txt") == (
-            b"legacy note updated"
-        )
-        assert "notes.md" not in migrated_document.embfile_names()
-    finally:
-        migrated_document.close()
+    migrated_document = open_pdf(pdf_path)
+    assert migrated_document.attachment_data("notes.txt") == (
+        b"legacy note updated"
+    )
+    assert migrated_document.attachment_data("notes.md") is None
 
 
 def test_save_as_rebinds_future_saves_to_target_file(tmp_path: Path) -> None:
@@ -694,19 +633,11 @@ def test_save_as_rebinds_future_saves_to_target_file(tmp_path: Path) -> None:
     service.save()
     service.close_document()
 
-    source_document = pymupdf.open(source_path)
-    try:
-        assert source_document.load_page(0).rotation == 0
-        assert source_document.load_page(1).rotation == 0
-    finally:
-        source_document.close()
+    source_pages = open_pdf(source_path).pages
+    assert [page.rotation for page in source_pages] == [0, 0]
 
-    target_document = pymupdf.open(target_path)
-    try:
-        assert target_document.load_page(0).rotation == 90
-        assert target_document.load_page(1).rotation == 90
-    finally:
-        target_document.close()
+    target_pages = open_pdf(target_path).pages
+    assert [page.rotation for page in target_pages] == [90, 90]
 
 
 def test_save_as_preserves_password_protection(tmp_path: Path) -> None:
@@ -720,12 +651,9 @@ def test_save_as_preserves_password_protection(tmp_path: Path) -> None:
     service.save_as(target_path)
     service.close_document()
 
-    copied_document = pymupdf.open(target_path)
-    try:
-        assert copied_document.needs_pass
-        assert copied_document.authenticate("user-pass") > 0
-    finally:
-        copied_document.close()
+    with pytest.raises(plain_open_pdf_engine.PasswordRequired):
+        open_pdf(target_path)
+    assert open_pdf(target_path, password="user-pass").page_count == 1
 
 
 def test_delete_page_marks_document_dirty_and_reindexes_pages(
@@ -794,10 +722,8 @@ def test_rename_bookmark_updates_outline_title(tmp_path: Path) -> None:
     pdf_path = tmp_path / "rename-bookmark.pdf"
     create_sample_pdf(pdf_path)
 
-    document = pymupdf.open(pdf_path)
-    document.set_toc([[1, "Original", 1], [1, "Keep", 2]])
-    document.saveIncr()
-    document.close()
+    with edited_pdf(pdf_path) as document:
+        document.set_outline([(1, "Original", 0), (1, "Keep", 1)])
 
     service = PdfDocument()
     service.open_document(pdf_path)
@@ -816,16 +742,14 @@ def test_delete_bookmark_removes_selected_outline_subtree(
     pdf_path = tmp_path / "delete-bookmark.pdf"
     create_sample_pdf(pdf_path)
 
-    document = pymupdf.open(pdf_path)
-    document.set_toc(
-        [
-            [1, "Parent", 1],
-            [2, "Child", 1],
-            [1, "Keep", 2],
-        ]
-    )
-    document.saveIncr()
-    document.close()
+    with edited_pdf(pdf_path) as document:
+        document.set_outline(
+            [
+                (1, "Parent", 0),
+                (2, "Child", 0),
+                (1, "Keep", 1),
+            ],
+        )
 
     service = PdfDocument()
     service.open_document(pdf_path)
@@ -864,12 +788,9 @@ def test_update_metadata_changes_title_and_author(tmp_path: Path) -> None:
     service.save()
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        assert document.metadata["title"] == "Project Plan"
-        assert document.metadata["author"] == "Alex Writer"
-    finally:
-        document.close()
+    entries = open_pdf(pdf_path).information_entries()
+    assert entries["Title"] == "Project Plan"
+    assert entries["Author"] == "Alex Writer"
 
 
 def test_metadata_reads_and_preserves_custom_info_property(
@@ -892,15 +813,7 @@ def test_metadata_reads_and_preserves_custom_info_property(
     service.save()
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        info_xref = info_dictionary_xref(document)
-        assert document.xref_get_key(info_xref, "edition") == (
-            "string",
-            "2",
-        )
-    finally:
-        document.close()
+    assert open_pdf(pdf_path).information_entries()["edition"] == "2"
 
 
 def test_update_metadata_adds_edits_and_deletes_custom_properties(
@@ -930,19 +843,9 @@ def test_update_metadata_adds_edits_and_deletes_custom_properties(
     service.save()
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        info_xref = info_dictionary_xref(document)
-        assert document.xref_get_key(info_xref, "edition") == (
-            "string",
-            "3",
-        )
-        assert document.xref_get_key(info_xref, "print_edition") == (
-            "null",
-            "null",
-        )
-    finally:
-        document.close()
+    entries = open_pdf(pdf_path).information_entries()
+    assert entries["edition"] == "3"
+    assert "print_edition" not in entries
 
 
 @pytest.mark.parametrize(
@@ -1018,11 +921,7 @@ def test_update_metadata_changes_xmp_xml(tmp_path: Path) -> None:
     service.save()
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        assert document.get_xml_metadata() == xmp_xml
-    finally:
-        document.close()
+    assert open_pdf(pdf_path).xmp_metadata() == xmp_xml
 
 
 def test_save_as_onto_aliased_source_path_saves_in_place(
@@ -1044,19 +943,16 @@ def test_save_as_onto_aliased_source_path_saves_in_place(
 
     service.close_document()
 
-    document = pymupdf.open(pdf_path)
-    try:
-        assert document.page_count == 2
-        assert document.load_page(0).rotation == 90
-    finally:
-        document.close()
+    document = open_pdf(pdf_path)
+    assert document.page_count == 2
+    assert document.pages[0].rotation == 90
 
 
 def test_failed_full_rewrite_save_keeps_unsaved_edits(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import open_pdf.application.document.session as reader_module
+    import plain_open_pdf.application.document.session as reader_module
 
     pdf_path = tmp_path / "failed-save.pdf"
     create_sample_pdf(pdf_path)
@@ -1065,14 +961,8 @@ def test_failed_full_rewrite_save_keeps_unsaved_edits(
     service.open_document(pdf_path)
     service.rotate_clockwise()
 
-    monkeypatch.setattr(
-        reader_module,
-        "can_save_incrementally",
-        lambda _document: False,
-    )
-
     def _failing_in_place_save(
-        document: pymupdf.Document,
+        document: EngineDocument,
         path: Path,
     ) -> None:
         del document, path
@@ -1097,7 +987,7 @@ def test_failed_full_rewrite_save_reopens_when_document_was_closed(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import open_pdf.application.document.session as reader_module
+    import plain_open_pdf.application.document.session as reader_module
 
     pdf_path = tmp_path / "failed-save-closed.pdf"
     create_sample_pdf(pdf_path)
@@ -1106,14 +996,8 @@ def test_failed_full_rewrite_save_reopens_when_document_was_closed(
     service.open_document(pdf_path)
     service.rotate_clockwise()
 
-    monkeypatch.setattr(
-        reader_module,
-        "can_save_incrementally",
-        lambda _document: False,
-    )
-
     def _failing_in_place_save(
-        document: pymupdf.Document,
+        document: EngineDocument,
         path: Path,
     ) -> None:
         del path

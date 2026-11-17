@@ -2,14 +2,14 @@
 
 import pytest
 
-from open_pdf.domains.document.models import PdfMetadata
-from open_pdf.domains.document.pages.reordering import (
+from plain_open_pdf.domains.document.models import PdfMetadata
+from plain_open_pdf.domains.document.pages.reordering import (
     blank_page_position,
     page_index_after_delete,
 )
-from open_pdf.domains.document.pages.text.ocr_search import match_rectangles
-from open_pdf.domains.document.properties.metadata import normalize_metadata
-from open_pdf.domains.document.properties.notes import NotesState
+from plain_open_pdf.domains.document.pages.text.ocr_search import match_rectangles
+from plain_open_pdf.domains.document.properties.metadata import normalize_metadata
+from plain_open_pdf.domains.document.properties.notes import NotesState
 
 
 def test_ocr_phrase_returns_plain_bounding_coordinates():

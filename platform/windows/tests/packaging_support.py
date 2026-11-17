@@ -45,18 +45,27 @@ if args[:1] == ["-c"] and args[1] in ("import compression.zstd", "import zstanda
 sys.exit(subprocess.run([sys.executable, *args]).returncode)
 '''
 
+# Stands in for scripts/engine/build.ps1, which runs cargo: it records the
+# interpreter it was asked to build the engine for.
+ENGINE_BUILD = '''param([string]$PythonExecutable, [switch]$Offline)
+Set-Content -LiteralPath $env:TEST_ENGINE_BUILD -Value $PythonExecutable -Encoding utf8
+'''
+
 
 def make_project(tmp_path):
     """Copy maintained scripts and minimal real app inputs into a fixture."""
     project = tmp_path / "repo" / "platform" / "windows"
     scripts = project / "scripts" / "nuitka"
     shutil.copytree(PROJECT / "scripts" / "nuitka", scripts)
+    engine = project / "scripts" / "engine"
+    engine.mkdir()
+    (engine / "build.ps1").write_text(ENGINE_BUILD, encoding="utf-8")
     shutil.copy(PROJECT / "pyproject.toml", project)
     (project / "assets").mkdir()
-    shutil.copy(PROJECT / "assets" / "open_pdf.ico", project / "assets")
-    config = project / "open_pdf" / "config"
+    shutil.copy(PROJECT / "assets" / "plain_open_pdf.ico", project / "assets")
+    config = project / "plain_open_pdf" / "config"
     config.mkdir(parents=True)
-    shutil.copy(PROJECT / "open_pdf" / "config" / "path_handler.py", config)
+    shutil.copy(PROJECT / "plain_open_pdf" / "config" / "path_handler.py", config)
     compiler = project / "compiler.py"
     compiler.write_text(COMPILER, encoding="utf-8")
     shim = project / "python.ps1"
@@ -73,6 +82,7 @@ def run_script(project, shim, name, *args, **environment):
         LOCALAPPDATA=str(project / "local-appdata"),
         USERNAME="test-private-user",
         TEST_BUILD_ARGS=str(project / "build-arguments.json"),
+        TEST_ENGINE_BUILD=str(project / "engine-build.txt"),
         WINDOWS_CERTIFICATE_SHA1="A" * 40,
     )
     env.update(environment)
@@ -89,6 +99,14 @@ def run_script(project, shim, name, *args, **environment):
         timeout=45,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
+
+
+def engine_build_interpreter(project):
+    """Return the interpreter the engine was built for, or None."""
+    path = project / "engine-build.txt"
+    if not path.exists():
+        return None
+    return path.read_text("utf-8-sig").strip()
 
 
 def arguments(project):

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from open_pdf.adapters.runtime.single_instance import (
+from plain_open_pdf.adapters.runtime.single_instance import (
     SingleInstanceCoordinator,
     _encode_launch_message,
 )

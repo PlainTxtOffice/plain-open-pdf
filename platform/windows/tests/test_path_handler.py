@@ -4,8 +4,8 @@ import tomllib
 from pathlib import Path
 from types import SimpleNamespace
 
-from open_pdf.config import path_handler
-from open_pdf.adapters.runtime import storage
+from plain_open_pdf.config import path_handler
+from plain_open_pdf.adapters.runtime import storage
 
 _PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
@@ -31,7 +31,7 @@ def test_app_data_dir_matches_pyproject() -> None:
     metadata = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
 
     assert (
-        metadata["tool"]["open-pdf"]["app-data-dir"]
+        metadata["tool"]["plain-open-pdf"]["app-data-dir"]
         == path_handler.APP_DATA_DIR_NAME
     )
 
@@ -40,7 +40,7 @@ def test_user_data_uses_local_app_data() -> None:
     environ = {"LOCALAPPDATA": r"C:\Users\Example\AppData\Local"}
 
     assert path_handler.resolve_user_data_dir(environ) == Path(
-        r"C:\Users\Example\AppData\Local\open-pdf",
+        r"C:\Users\Example\AppData\Local\plain-open-pdf",
     )
 
 
@@ -48,7 +48,7 @@ def test_user_data_has_home_fallback(monkeypatch) -> None:
     monkeypatch.setattr(Path, "home", lambda: Path(r"C:\Users\Example"))
 
     assert path_handler.resolve_user_data_dir({}) == Path(
-        r"C:\Users\Example\AppData\Local\open-pdf",
+        r"C:\Users\Example\AppData\Local\plain-open-pdf",
     )
 
 
@@ -62,7 +62,7 @@ def test_source_checkout_stores_data_in_the_project(tmp_path: Path) -> None:
 def test_build_without_a_marker_uses_local_app_data(tmp_path: Path) -> None:
     assert _resolve(tmp_path, is_compiled=True, is_portable=False) == (
         "installed",
-        tmp_path / "local" / "open-pdf",
+        tmp_path / "local" / "plain-open-pdf",
     )
 
 
@@ -71,7 +71,7 @@ def test_storage_root_prefers_portable_over_local_app_data(
 ) -> None:
     assert _resolve(tmp_path, is_compiled=True, is_portable=True) == (
         "portable",
-        tmp_path / "exe" / "open-pdf-data",
+        tmp_path / "exe" / "plain-open-pdf-data",
     )
 
 
@@ -83,11 +83,11 @@ def test_read_only_portable_folder_falls_back_to_local_app_data(
         is_compiled=True,
         is_portable=True,
         writable=False,
-    ) == ("portable-fallback", tmp_path / "local" / "open-pdf")
+    ) == ("portable-fallback", tmp_path / "local" / "plain-open-pdf")
 
 
 def test_writable_probe_creates_the_folder(tmp_path: Path) -> None:
-    target = tmp_path / "new" / "open-pdf-data"
+    target = tmp_path / "new" / "plain-open-pdf-data"
 
     assert storage.is_writable_dir(target) is True
     assert target.is_dir()
@@ -98,7 +98,7 @@ def test_writable_probe_rejects_a_file_path(tmp_path: Path) -> None:
     blocker = tmp_path / "blocker"
     blocker.write_text("", encoding="utf-8")
 
-    assert storage.is_writable_dir(blocker / "open-pdf-data") is False
+    assert storage.is_writable_dir(blocker / "plain-open-pdf-data") is False
 
 
 def test_portable_storage_sits_beside_the_onefile_binary(monkeypatch) -> None:
@@ -117,7 +117,7 @@ def test_exe_dir_falls_back_to_the_launched_executable(monkeypatch) -> None:
     monkeypatch.setattr(
         path_handler.sys,
         "argv",
-        [r"D:\Fallback\Open PDF.exe"],
+        [r"D:\Fallback\plain-open-pdf.exe"],
     )
 
     assert path_handler.resolve_exe_dir() == Path(r"D:\Fallback").resolve()
@@ -146,11 +146,13 @@ def test_source_checkout_is_never_portable() -> None:
     assert path_handler.STORAGE_MODE == "development"
 
 
+# The folders named open-pdf and open-pdf-data below are pre-rename names:
+# the product was "Open PDF" before it became Plain Open PDF.
 def test_legacy_folder_is_renamed_when_only_it_exists(tmp_path: Path) -> None:
-    legacy = tmp_path / "Open PDF Data"
+    legacy = tmp_path / "open-pdf-data"
     (legacy / "data").mkdir(parents=True)
     (legacy / "data" / "ui-state.json").write_text("{}", encoding="utf-8")
-    current = tmp_path / "open-pdf-data"
+    current = tmp_path / "plain-open-pdf-data"
 
     assert storage.migrate_legacy_folder(legacy, current) is True
     assert not legacy.exists()
@@ -160,9 +162,9 @@ def test_legacy_folder_is_renamed_when_only_it_exists(tmp_path: Path) -> None:
 
 
 def test_legacy_folder_never_overwrites_current_data(tmp_path: Path) -> None:
-    legacy = tmp_path / "Open PDF"
+    legacy = tmp_path / "open-pdf"
     legacy.mkdir()
-    current = tmp_path / "open-pdf"
+    current = tmp_path / "plain-open-pdf"
     current.mkdir()
     (current / "keep.txt").write_text("current", encoding="utf-8")
 
@@ -172,10 +174,10 @@ def test_legacy_folder_never_overwrites_current_data(tmp_path: Path) -> None:
 
 
 def test_missing_legacy_folder_is_ignored(tmp_path: Path) -> None:
-    current = tmp_path / "open-pdf"
+    current = tmp_path / "plain-open-pdf"
 
     assert (
-        storage.migrate_legacy_folder(tmp_path / "Open PDF", current)
+        storage.migrate_legacy_folder(tmp_path / "open-pdf", current)
         is False
     )
     assert not current.exists()
@@ -185,7 +187,7 @@ def test_failed_rename_keeps_the_legacy_folder(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    legacy = tmp_path / "Open PDF"
+    legacy = tmp_path / "open-pdf"
     legacy.mkdir()
 
     def locked(self: Path, target: Path) -> Path:
@@ -194,7 +196,58 @@ def test_failed_rename_keeps_the_legacy_folder(
     monkeypatch.setattr(Path, "rename", locked)
 
     assert (
-        storage.migrate_legacy_folder(legacy, tmp_path / "open-pdf")
+        storage.migrate_legacy_folder(legacy, tmp_path / "plain-open-pdf")
         is False
     )
     assert legacy.is_dir()
+
+
+def test_empty_current_folder_is_replaced_by_the_legacy_folder(
+    tmp_path: Path,
+) -> None:
+    legacy = tmp_path / "open-pdf"
+    legacy.mkdir()
+    (legacy / "keep.txt").write_text("old", encoding="utf-8")
+    current = tmp_path / "plain-open-pdf"
+    current.mkdir()
+
+    assert storage.migrate_legacy_folder(legacy, current) is True
+    assert not legacy.exists()
+    assert (current / "keep.txt").read_text(encoding="utf-8") == "old"
+
+
+def test_folder_held_open_by_another_copy_is_used_in_place(
+    tmp_path: Path,
+) -> None:
+    """Windows refuses to rename a folder while a file in it is open."""
+    legacy = tmp_path / "open-pdf"
+    (legacy / "logs").mkdir(parents=True)
+    current = tmp_path / "plain-open-pdf"
+    names = ("open-pdf", "Open PDF")
+
+    with (legacy / "logs" / "Open_PDF.log").open("w", encoding="utf-8"):
+        assert storage.adopt_legacy_folder(current, names) == legacy
+        assert not current.exists()
+
+    assert storage.adopt_legacy_folder(current, names) == current
+    assert not legacy.exists()
+    assert (current / "logs" / "Open_PDF.log").is_file()
+
+
+def test_portable_root_override_is_probed_and_returned(tmp_path: Path) -> None:
+    kept = tmp_path / "exe" / "open-pdf-data"
+    probed: list[Path] = []
+
+    def writable(path: Path) -> bool:
+        probed.append(path)
+        return True
+
+    assert path_handler.resolve_storage(
+        is_compiled=True,
+        is_portable=True,
+        exe_dir=tmp_path / "exe",
+        user_data_dir=tmp_path / "local" / path_handler.APP_DATA_DIR_NAME,
+        is_writable=writable,
+        portable_root=kept,
+    ) == ("portable", kept)
+    assert probed == [kept]

@@ -79,9 +79,9 @@ jobs:
 
       - name: Build with Nuitka
         if: steps.script.outputs.exists == 'true'
-        # standalone.ps1 also runs the privacy scan and validate_release.ps1.
-        # Match local clang-cl builds: MSVC runs out of compiler heap (C1002)
-        # on the generated pymupdf.mupdf module, even with LTO disabled.
+        # The script builds the PDF engine with the runner's Rust toolchain
+        # first. standalone.ps1 also runs the privacy scan and
+        # validate_release.ps1. Match local clang-cl builds.
         run: ./scripts/nuitka/${{ matrix.variant }}.ps1 -Compiler clang
 
       - name: Upload build

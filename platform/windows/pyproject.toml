@@ -5,38 +5,40 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "open-pdf"
+name = "plain-open-pdf"
 version = "1.0.1"
-description = "Lightweight desktop PDF viewer built with PySide6 and PyMuPDF"
+description = "Lightweight desktop PDF viewer built with PySide6 and its own PDF engine"
 readme = "README.md"
 requires-python = ">=3.12"
 # The license text is the repository-root LICENSE; PEP 639 license-files
 # cannot reach outside this project folder.
 license = "MIT"
-authors = [{ name = "Tripp", email = "tripp@trippemail.com" }]
-dependencies = ["PySide6>=6.7", "PyMuPDF>=1.24"]
+authors = [{ name = "Tripp", email = "tripp@plaintxtoffice.com" }]
+# The PDF engine module is built from plain_open_pdf_engine/ by
+# scripts/engine/build.ps1, not installed by pip.
+dependencies = ["PySide6>=6.7"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.14", "rumdl>=0.0.170", "mypy>=1.18"]
 
 [project.scripts]
-open-pdf = "open_pdf.main:main"
+plain-open-pdf = "plain_open_pdf.main:main"
 
-[tool.open-pdf]
+[tool.plain-open-pdf]
 # Folder name under %LOCALAPPDATA%; keep in sync with APP_DATA_DIR_NAME in
-# open_pdf/config/path_handler.py. The Nuitka scripts read this table.
-app-data-dir = "open-pdf"
+# plain_open_pdf/config/path_handler.py. The Nuitka scripts read this table.
+app-data-dir = "plain-open-pdf"
 
-[tool.open-pdf.packaging]
-title = "Open PDF"
-company-name = "Plain Txt Office"
-copyright = "Copyright (c) 2026 Plain Txt Office"
+[tool.plain-open-pdf.packaging]
+title = "Plain Open PDF"
+company-name = "Plain Text Office LLC"
+copyright = "Copyright (c) 2026 Plain Text Office LLC"
 
 [tool.setuptools]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["open_pdf", "open_pdf.*"]
+include = ["plain_open_pdf", "plain_open_pdf.*"]
 namespaces = true
 
 [tool.pytest.ini_options]
@@ -47,7 +49,7 @@ tmp_path_retention_policy = "none"
 cache_dir = "$PYTEST_ACCOUNT_ROOT/cache"
 
 [tool.ruff]
-namespace-packages = ["open_pdf/domains", "open_pdf/adapters"]
+namespace-packages = ["plain_open_pdf/domains", "plain_open_pdf/adapters"]
 line-length = 80
 # Single source of truth for both the CLI and the editor; the Ruff
 # extension's overrides were removed from .vscode/settings.json.
@@ -69,14 +71,25 @@ select = ["ALL"]
 ignore = ["COM812", "CPY001", "D203", "D213", "DOC201", "DOC501"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ANN", "ARG001", "ARG005", "INP001", "PLC0415", "PLR2004", "S101", "SLF001"]
+"tests/**" = [
+    "ANN",
+    "ARG001",
+    "ARG005",
+    "INP001",
+    "PLC0415",
+    "PLR2004",
+    "S101",
+    "SLF001",
+]
 
 [tool.ruff.lint.flake8-import-conventions.extend-aliases]
 "decimal.Decimal" = "D"
 
 [tool.mypy]
-# Resolve the open_pdf package from the Windows project root.
+# Resolve the plain_open_pdf package from the Windows project root.
 explicit_package_bases = true
+# The compiled PDF engine module's types come from its stub.
+mypy_path = "plain_open_pdf_engine/python"
 exclude = ['(^|[\\/])tests([\\/]|$)']
 ignore_missing_imports = true
 disallow_any_explicit = true

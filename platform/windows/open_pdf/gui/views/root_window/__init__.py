@@ -1,1 +1,0 @@
-"""Main viewer window package."""

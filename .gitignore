@@ -39,7 +39,7 @@ main.onefile-build/
 *.zip
 *.png
 !platform/windows/assets/screenshots/*.png
-!platform/linux/open_pdf/assets/open_pdf.png
+!platform/linux/plain_open_pdf/assets/plain_open_pdf.png
 .env
 .DS_Store
 platform/windows/assets/fonts/*.ttf

@@ -1,10 +1,10 @@
 """Tests for the document notes collaborator."""
 
-import pymupdf
 import pytest
 
-from open_pdf.application.document import notes as notes_module
-from open_pdf.application.document.notes import (
+from engine_pdfs import PdfBuilder
+from plain_open_pdf.application.document import notes as notes_module
+from plain_open_pdf.application.document.notes import (
     LEGACY_NOTES_ATTACHMENT_NAME,
     NOTES_ATTACHMENT_NAME,
     DocumentNotes,
@@ -34,8 +34,8 @@ def test_text_starts_empty() -> None:
 
 
 def test_load_seeds_text_from_current_attachment() -> None:
-    document = pymupdf.open()
-    document.embfile_add(NOTES_ATTACHMENT_NAME, b"stored notes")
+    document = PdfBuilder().document
+    document.native.add_attachment(NOTES_ATTACHMENT_NAME, b"stored notes")
 
     notes = DocumentNotes()
     notes.load(document)
@@ -45,8 +45,11 @@ def test_load_seeds_text_from_current_attachment() -> None:
 
 
 def test_load_falls_back_to_legacy_attachment() -> None:
-    document = pymupdf.open()
-    document.embfile_add(LEGACY_NOTES_ATTACHMENT_NAME, b"legacy notes")
+    document = PdfBuilder().document
+    document.native.add_attachment(
+        LEGACY_NOTES_ATTACHMENT_NAME,
+        b"legacy notes",
+    )
 
     notes = DocumentNotes()
     notes.load(document)
@@ -56,31 +59,33 @@ def test_load_falls_back_to_legacy_attachment() -> None:
 
 
 def test_flush_writes_current_attachment() -> None:
-    document = pymupdf.open()
+    document = PdfBuilder().document
 
     notes = DocumentNotes()
     notes.update("fresh notes")
     notes.flush(document)
 
-    assert document.embfile_get(NOTES_ATTACHMENT_NAME) == b"fresh notes"
+    assert document.native.attachment_data(NOTES_ATTACHMENT_NAME) == (
+        b"fresh notes"
+    )
     document.close()
 
 
 def test_flush_skips_write_when_unchanged_and_current() -> None:
-    document = pymupdf.open()
+    document = PdfBuilder().document
 
     notes = DocumentNotes()
     notes.load(document)
     notes.flush(document)
 
-    assert NOTES_ATTACHMENT_NAME not in document.embfile_names()
+    assert document.native.attachments() == []
     document.close()
 
 
 def test_mark_saved_prevents_redundant_rewrite_on_next_flush(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    document = pymupdf.open()
+    document = PdfBuilder().document
 
     notes = DocumentNotes()
     notes.update("first save")

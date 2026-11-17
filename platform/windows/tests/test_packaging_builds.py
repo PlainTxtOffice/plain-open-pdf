@@ -4,7 +4,13 @@ import tomllib
 
 import pytest
 
-from packaging_support import POWERSHELL, arguments, make_project, run_script
+from packaging_support import (
+    POWERSHELL,
+    arguments,
+    engine_build_interpreter,
+    make_project,
+    run_script,
+)
 
 pytestmark = pytest.mark.skipif(not POWERSHELL, reason="PowerShell 7 is required")
 
@@ -16,6 +22,7 @@ def test_build_variant_flags(tmp_path, variant, commercial):
     result = run_script(project, shim, variant + ".ps1", "-Compiler", "msvc",
                         TEST_COMMERCIAL=commercial)
     assert result.returncode == 0, result.stdout + result.stderr
+    assert engine_build_interpreter(project) == str(shim)
     args = arguments(project)
     debug = variant == "standalone-debug"
     portable = variant == "onefile"
@@ -25,15 +32,20 @@ def test_build_variant_flags(tmp_path, variant, commercial):
         "--windows-console-mode=" + ("force" if debug else "disable")]
     assert any("portable.marker=" in a for a in args) == portable
     version = tomllib.loads((project / "pyproject.toml").read_text("utf-8"))["project"]["version"]
-    filename = f"open-pdf-{version}-portable.exe" if portable else "open-pdf.exe"
+    filename = {
+        "onefile": f"plain-open-pdf-{version}-portable.exe",
+        "standalone": "plain-open-pdf.exe",
+        "standalone-debug": "plain-open-pdf-debug.exe",
+    }[variant]
     assert f"--output-filename={filename}" in args
+    assert "--file-description=Plain Open PDF" in args
     assert "--output-dir=" + str(project / "build" / variant) in args
     assert ("--enable-plugin=data-hiding" in args) == bool(commercial)
     assert ("--enable-plugin=anti-debugger" in args) == bool(commercial and not debug)
     assert ("--enable-plugin=signtool" in args) == bool(commercial and not debug)
     assert not any("traceback-encryption" in a or "--embed-data" in a for a in args)
     assert any(a.startswith("--report=") for a in args)
-    assert result.stdout.count("Building Open PDF:") == 1
+    assert result.stdout.count("Building Plain Open PDF:") == 1
     assert result.stdout.count("Output directory:") == 1
 
 
@@ -85,7 +97,7 @@ def test_privacy_scan_encodings_and_chunk_boundary(tmp_path):
 
 def test_persisted_data_is_preserved_by_default(tmp_path):
     project, shim = make_project(tmp_path)
-    data = project / "local-appdata" / "open-pdf"
+    data = project / "local-appdata" / "plain-open-pdf"
     data.mkdir(parents=True)
     settings = data / "settings.json"
     settings.write_text("private preferences", encoding="utf-8")
@@ -93,3 +105,44 @@ def test_persisted_data_is_preserved_by_default(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Persisted data at" in result.stdout
     assert settings.read_text("utf-8") == "private preferences"
+
+
+# "open-pdf", "Open PDF" and their "-data" forms are pre-rename names that a
+# compiled build adopts at startup, so a reset has to remove them as well.
+def test_reset_also_deletes_pre_rename_data_folders(tmp_path):
+    from plain_open_pdf.config import path_handler
+
+    project, shim = make_project(tmp_path)
+    local = [
+        project / "local-appdata" / name
+        for name in ("plain-open-pdf", *path_handler.LEGACY_APP_DATA_DIR_NAMES)
+    ]
+    portable = [
+        project / "build" / "onefile" / name
+        for name in (
+            "plain-open-pdf-data",
+            *path_handler.LEGACY_PORTABLE_DATA_DIR_NAMES,
+        )
+    ]
+    unrelated = project / "local-appdata" / "other-app"
+    for folder in (*local, *portable, unrelated):
+        folder.mkdir(parents=True)
+        (folder / "settings.json").write_text("old", encoding="utf-8")
+
+    result = run_script(
+        project, shim, "onefile.ps1", "-Compiler", "msvc", "-ResetRuntimeDefaults"
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert [folder.name for folder in (*local, *portable) if folder.exists()] == []
+    assert unrelated.is_dir()
+
+
+def test_pre_rename_data_folders_are_reported_without_reset(tmp_path):
+    project, shim = make_project(tmp_path)
+    data = project / "local-appdata" / "open-pdf"
+    data.mkdir(parents=True)
+    result = run_script(project, shim, "standalone.ps1", "-Compiler", "msvc")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Persisted data at" in result.stdout
+    assert data.is_dir()

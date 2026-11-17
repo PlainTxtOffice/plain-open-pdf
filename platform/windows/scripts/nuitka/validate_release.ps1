@@ -5,7 +5,7 @@
 param(
     [string]$DistPath = 'build/standalone/main.dist',
     [string]$PythonExecutable = '.venv/Scripts/python.exe',
-    [string]$ExecutableName = 'open-pdf.exe'
+    [string]$ExecutableName = 'plain-open-pdf.exe'
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -31,7 +31,7 @@ def validate(dist: Path, project: Path, executable: str) -> list[str]:
       the developer and never ship.
     """
     sys.path.insert(0, str(project))
-    from open_pdf.config import path_handler as paths  # noqa: PLC0415
+    from plain_open_pdf.config import path_handler as paths  # noqa: PLC0415
 
     if not dist.is_dir():
         return [f"Distribution folder does not exist: {dist}"]
@@ -51,7 +51,7 @@ def validate(dist: Path, project: Path, executable: str) -> list[str]:
         if (path.parent == dist and path.name.casefold() in top_level)
         or path.name.casefold() == paths.PORTABLE_MARKER_NAME
         or (path.name.casefold() == "tests"
-            and path.parent in (dist, dist / "open_pdf"))
+            and path.parent in (dist, dist / "plain_open_pdf"))
         # A bare .env file has no suffix, so match the name's ending.
         or path.name.casefold().endswith((".env", ".key"))
     ]
@@ -59,8 +59,11 @@ def validate(dist: Path, project: Path, executable: str) -> list[str]:
         problems.append("ExecutableName must be an .exe filename without directories.")
     elif not (dist / executable).is_file() or not (dist / executable).stat().st_size:
         problems.append(f"Missing or empty release executable: {executable}")
-    if executable.casefold() != "open pdf.exe" and (dist / "Open PDF.exe").exists():
-        problems.append("Stale Open PDF.exe remains beside the renamed executable; rebuild a clean payload.")
+    # Pre-rename executable names: the product was "Open PDF" before it
+    # became Plain Open PDF, so a payload holding one was not rebuilt cleanly.
+    for stale in ("Open PDF.exe", "open-pdf.exe"):
+        if executable.casefold() != stale.casefold() and (dist / stale).exists():
+            problems.append(f"Stale {stale} remains beside the renamed executable; rebuild a clean payload.")
     return problems
 
 

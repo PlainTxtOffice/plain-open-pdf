@@ -1,4 +1,4 @@
-from open_pdf.domains.document.pages.view_state import (
+from plain_open_pdf.domains.document.pages.view_state import (
     MAX_ZOOM,
     MIN_ZOOM,
     PdfViewState,

@@ -2,7 +2,7 @@
 
 import pytest
 
-from open_pdf.domains.document.properties.outlines import (
+from plain_open_pdf.domains.document.properties.outlines import (
     validate_bookmark_title,
     validate_outline_index,
 )

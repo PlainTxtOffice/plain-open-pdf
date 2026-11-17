@@ -13,12 +13,13 @@ The build needs licensed Advanced Installer Professional, the project
 Nuitka payload. Follow the [Nuitka README](../nuitka/README.md) for compilation,
 Commercial features, privacy checks, and application signing. Recompile after
 changing application code or version; the installer script does not compile it.
-The standalone payload must contain `open-pdf.exe`. The persistent AIP's file
-and shortcut references have been updated to this filename while retaining the
-UpgradeCode and existing installation directories. Rebuild the payload before
-running the installer script; old `Open PDF.exe` payloads are rejected.
+The standalone payload must contain `plain-open-pdf.exe`. The persistent AIP's
+file and shortcut references have been updated to this filename while retaining
+the UpgradeCode, so the installer upgrades an installed Open PDF in place.
+Rebuild the payload before running the installer script; payloads that still
+hold the pre-rename `Open PDF.exe` or `open-pdf.exe` are rejected.
 
-The current x64 output is `build/installer/open-pdf-1.0.1-setup.exe`. The
+The current x64 output is `build/installer/plain-open-pdf-1.0.1-setup.exe`. The
 filename follows the project version; architecture is validated from the payload
 rather than added to the name for this single-architecture download. The script
 prints the exact installer and AIP paths and reports the Authenticode status
@@ -56,19 +57,19 @@ alternate release payload:
 
 An isolated project has a different upgrade identity and is for testing only.
 Distributed releases must keep using the persistent
-`dev-docs/packaging/advanced_installer/open-pdf.aip`. An existing AIP with a
-different synchronized source fails clearly; deliberately edit its mapping in
+`dev-docs/packaging/advanced_installer/plain-open-pdf.aip`. An existing AIP with
+a different synchronized source fails clearly; deliberately edit its mapping in
 Advanced Installer before using a new source directory. Keep source references
 relative to the AIP so the checkout can move.
 
 ## Installation and upgrades
 
-The installer installs Open PDF per machine under
+The installer installs Plain Open PDF per machine under
 `[ProgramFiles64Folder][Manufacturer]\[ProductName]` for x64, or the
 corresponding 32-bit Program Files folder for x86. It requires elevation and
 creates one Start menu shortcut. Running the application does not require
-elevation. Application data stays in `%LOCALAPPDATA%/open-pdf`; uninstall leaves
-that data alone. Target PCs do not need Python installed separately.
+elevation. Application data stays in `%LOCALAPPDATA%/plain-open-pdf`; uninstall
+leaves that data alone. Target PCs do not need Python installed separately.
 
 The AIP owns the UpgradeCode, installation scope, shortcuts, synchronized
 payload mapping, upgrade policy, and signing settings. Keep it in version
@@ -79,14 +80,17 @@ product. Increment the version for every distributed update. Do not regenerate
 the AIP or use this synchronization workflow for patches or overlapping
 upgrades.
 
-The existing display-name installation and Start menu paths are preserved.
-Only newly initialized test or first-release projects use
-`[ProgramFiles64Folder]plain-txt-office\open-pdf` and
-`[ProgramMenuFolder]open-pdf` (with the 32-bit Program Files prefix for x86).
-Creating an isolated test project never replaces the persistent release AIP.
+The persistent AIP installs to display-name paths built from `[ProductName]`, so
+the installation and Start menu folders are now named Plain Open PDF; the major
+upgrade removes the folders of an installed Open PDF first. Only newly
+initialized test or first-release projects use
+`[ProgramFiles64Folder]plain-text-office-llc\plain-open-pdf` and
+`[ProgramMenuFolder]plain-open-pdf` (with the 32-bit Program Files prefix for
+x86). Creating an isolated test project never replaces the persistent release
+AIP.
 
-Setup and Installed Apps both use `assets/open_pdf.ico`, the same source as
-Nuitka. Both references are refreshed through Advanced Installer's supported
+Setup and Installed Apps both use `assets/plain_open_pdf.ico`, the same source
+as Nuitka. Both references are refreshed through Advanced Installer's supported
 commands after validating the existing project. This requires Advanced Installer
 23.4 or newer; the locally configured version is 24.1.
 

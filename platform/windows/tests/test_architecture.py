@@ -20,20 +20,20 @@ def test_domains_use_only_pure_dependencies():
     allowed = {"__future__", "typing", "dataclasses", "collections.abc"}
     violations = [
         (str(path), name)
-        for path in Path("open_pdf/domains").rglob("*.py")
+        for path in Path("plain_open_pdf/domains").rglob("*.py")
         for name in imports(path)
-        if name not in allowed and not name.startswith("open_pdf.domains.")
+        if name not in allowed and not name.startswith("plain_open_pdf.domains.")
     ]
     assert violations == []
-    assert not Path("open_pdf/domains/__init__.py").exists()
+    assert not Path("plain_open_pdf/domains/__init__.py").exists()
 
 
 def test_adapters_do_not_depend_on_workflows_or_gui():
     violations = [
         (str(path), name)
-        for path in Path("open_pdf/adapters").rglob("*.py")
+        for path in Path("plain_open_pdf/adapters").rglob("*.py")
         for name in imports(path)
-        if name.startswith(("open_pdf.application", "open_pdf.gui"))
+        if name.startswith(("plain_open_pdf.application", "plain_open_pdf.gui"))
     ]
     assert violations == []
 
@@ -41,8 +41,8 @@ def test_adapters_do_not_depend_on_workflows_or_gui():
 def test_application_workflows_do_not_depend_on_gui():
     violations = [
         (str(path), name)
-        for path in Path("open_pdf/application").rglob("*.py")
+        for path in Path("plain_open_pdf/application").rglob("*.py")
         for name in imports(path)
-        if name.startswith(("open_pdf.gui", "PySide6"))
+        if name.startswith(("plain_open_pdf.gui", "PySide6"))
     ]
     assert violations == []
