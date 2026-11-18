@@ -64,8 +64,8 @@ they move to the Plain Open PDF engine and have been tested on those systems.
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows (portable) | [plain-open-pdf.exe](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/open-pdf.exe) | Runs without installation. |
-| Windows (installer) | [plain-open-pdf-setup.exe](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/open-pdf-setup.exe) | |
+| Windows (portable) | [plain-open-pdf.exe](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/plain-open-pdf.exe) | Runs without installation. |
+| Windows (installer) | [plain-open-pdf-setup.exe](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/plain-open-pdf-setup.exe) | |
 
 The Windows builds are for x64 (64-bit). Checksums and release notes are on the
 [latest release](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest).
