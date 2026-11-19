@@ -93,6 +93,7 @@ the same release.
 
 1. Download `SHA256SUMS.txt` from the
    [latest release](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest).
+
 1. Open PowerShell in the folder that holds the download and run:
 
    ```powershell
@@ -100,6 +101,7 @@ the same release.
    ```
 
    For the portable executable, use `plain-open-pdf.exe` as the file name.
+
 1. Compare the `Hash` value with the entry for that file in `SHA256SUMS.txt`.
    Letter case does not matter. If the values differ, download the file again
    and do not run it.
