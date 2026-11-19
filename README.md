@@ -1,4 +1,4 @@
-<!-- last_updated: 2026-11-17 -->
+<!-- last_updated: 2026-11-19 -->
 <!-- Authoring guidance: dev-docs/specs/README_SPEC.instructions.md -->
 <!-- rumdl-disable MD033 MD041 -->
 <p align="center">
@@ -58,7 +58,7 @@ they move to the Plain Open PDF engine and have been tested on those systems.
 
 ## App Screenshot
 
-![Plain Open PDF main window on Windows, with page thumbnails on the left, the continuous document view in the center, and bookmarks on the right](platform/windows/assets/screenshots/plain-open-pdf-main-window.png)
+![Plain Open PDF main window on Windows, with page thumbnails on the left, the continuous document view in the center with document notes below it, and bookmarks on the right](platform/windows/assets/screenshots/plain-open-pdf-main-window.png)
 
 ## Download
 
