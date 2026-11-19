@@ -35,10 +35,11 @@ impl BlendMode {
         }
     }
 
-    /// One component, from 0 to 255, after painting `source` over
-    /// `backdrop` by `amount`.
-    fn mix(self, backdrop: f64, source: f64, amount: f64) -> f64 {
-        let (below, above) = (backdrop / 255.0, source / 255.0);
+    /// One component, from 0 to 255, after painting a source over a
+    /// backdrop by `amount`, both given as fractions from 0 to 1: the
+    /// backdrop's byte and the source's component each divided by 255.
+    #[inline]
+    fn mix(self, below: f64, above: f64, amount: f64) -> f64 {
         let blended = match self {
             Self::Normal => above,
             Self::Multiply => below * above,
@@ -50,8 +51,30 @@ impl BlendMode {
     }
 }
 
+/// Every byte divided by 255, the same correctly rounded division as at
+/// run time.
+const fn fractions() -> [f64; 256] {
+    let mut table = [0.0; 256];
+    let mut index = 0;
+    while index < 256 {
+        table[index] = index as f64 / 255.0;
+        index += 1;
+    }
+    table
+}
+
+/// Each byte's fraction of 255.
+static FRACTIONS: [f64; 256] = fractions();
+
 /// Sample rows taken through each pixel row; coverage along a row is exact.
 const SAMPLES: usize = 5;
+
+/// Crossings up to this many are ordered by insertion; more by the library.
+const FEW_CROSSINGS: usize = 32;
+
+/// Room set aside for edges before any is found. Points that give no edge
+/// must not set aside more: a path may hold very many of them.
+const EDGES_AT_FIRST: usize = 64;
 
 /// `value.round().clamp(0.0, 255.0) as u8`, without the library call that
 /// rounding compiles to on processors without SSE4.1. The result is the
@@ -348,9 +371,25 @@ impl Canvas {
         } = *placed;
         let color = color.map(|component| component.clamp(0.0, 1.0) * 255.0);
         let alpha = alpha.clamp(0.0, 1.0) / 255.0;
+        // Each component as a fraction, as mixing takes it.
+        let above = color.map(|component| component / 255.0);
         // What mixing gives for an amount of 1 in the normal mode, where the
         // color beneath does not count.
-        let opaque = color.map(|component| to_byte_f64((component / 255.0) * 255.0));
+        let opaque = above.map(|fraction| to_byte_f64(fraction * 255.0));
+        let normal = mode == BlendMode::Normal;
+        // Whether full coverage, fully through any clip, gives an amount of
+        // 1 in the normal mode, so that such a cell gets the opaque color.
+        let full = normal && 255.0 * alpha == 1.0;
+        // The same without a clip.
+        let solid = full && clip.is_none();
+        // Whether every component of the color is a number. Mixing a color
+        // that is not a number gives 0 even for an amount of 0, so only a
+        // plain color lets a cell with an amount of 0 be left as it is.
+        let plain = above.iter().all(|fraction| !fraction.is_nan());
+        // With a plain color and an opacity that is a number, a cell the
+        // clip does not let through gets an amount of 0 and is left as it
+        // is. A NaN opacity gives NaN amounts whatever the clip holds.
+        let trim = plain && !alpha.is_nan();
         // The columns and rows of the coverage that fall in the canvas.
         let span = |start: i64, length: usize, limit: usize| {
             let first = start.saturating_neg().clamp(0, length as i64) as usize;
@@ -370,37 +409,117 @@ impl Canvas {
         // Paint the cells of one row from one column up to another.
         let mut paint_cells = |row: usize, first_column: usize, last_column: usize| {
             let y = (top + row as i64) as usize;
-            let coverages = &coverage[row * width..(row + 1) * width];
-            let clip_row = clip.map(|clip| clip.row(y));
+            let mut columns = (first_column, last_column);
+            // The clip cells lined up with the coverage, when the row is cut
+            // to the columns the clip row holds.
+            let mut clip_cells: Option<&[u8]> = None;
+            // The clip row looked up cell by cell otherwise.
+            let mut clip_row: Option<(usize, &[u8])> = None;
+            if let Some(clip) = clip {
+                let (clip_left, cells) = clip.row(y);
+                if trim {
+                    let (low, high) = (first_column as i64, last_column as i64);
+                    let from = (clip_left as i64 - left).clamp(low, high) as usize;
+                    let to =
+                        (clip_left as i64 + cells.len() as i64 - left).clamp(low, high) as usize;
+                    if from >= to {
+                        return;
+                    }
+                    let start = (left + from as i64) as usize - clip_left;
+                    clip_cells = Some(&cells[start..start + (to - from)]);
+                    columns = (from, to);
+                } else {
+                    clip_row = Some((clip_left, cells));
+                }
+            }
+            let (first_column, last_column) = columns;
+            let coverages = &coverage[row * width + first_column..row * width + last_column];
+            let x_first = (left + first_column as i64) as usize;
+            let start = (y - origin_y) * image_width + (x_first - origin_x);
+            let pixels = &mut data[start * 4..(start + coverages.len()) * 4];
+            let pixels = pixels.as_chunks_mut::<4>().0;
+            if let Some(clip_cells) = clip_cells {
+                for ((cells, clips), group) in coverages
+                    .chunks(8)
+                    .zip(clip_cells.chunks(8))
+                    .zip(pixels.chunks_mut(8))
+                {
+                    if cells.iter().all(|&coverage| coverage == 0)
+                        || clips.iter().all(|&through| through == 0)
+                    {
+                        continue;
+                    }
+                    if full
+                        && cells.iter().all(|&coverage| coverage == 255)
+                        && clips.iter().all(|&through| through == 255)
+                    {
+                        for pixel in group.iter_mut() {
+                            pixel[..3].copy_from_slice(&opaque);
+                        }
+                        continue;
+                    }
+                    for ((&coverage, &through), pixel) in cells.iter().zip(clips).zip(group) {
+                        if coverage == 0 {
+                            continue;
+                        }
+                        let mut amount = f64::from(coverage) * alpha;
+                        amount *= FRACTIONS[usize::from(through)];
+                        // Nothing of a plain color over: mixing gives the byte beneath back.
+                        if amount == 0.0 && plain {
+                            continue;
+                        }
+                        if amount == 1.0 && normal {
+                            pixel[..3].copy_from_slice(&opaque);
+                            continue;
+                        }
+                        for (value, &fraction) in pixel[..3].iter_mut().zip(&above) {
+                            *value = to_byte_f64(mode.mix(
+                                FRACTIONS[usize::from(*value)],
+                                fraction,
+                                amount,
+                            ));
+                        }
+                    }
+                }
+                return;
+            }
             // Eight cells at a time, so that long empty runs go by quickly.
-            let mut column = first_column;
-            for cells in coverages[first_column..last_column].chunks(8) {
-                let first = column;
-                column += cells.len();
+            let mut x_group = x_first;
+            for (cells, group) in coverages.chunks(8).zip(pixels.chunks_mut(8)) {
+                let first = x_group;
+                x_group += cells.len();
                 if cells.iter().all(|&coverage| coverage == 0) {
                     continue;
                 }
-                for (column, &coverage) in (first..).zip(cells) {
+                if solid && cells.iter().all(|&coverage| coverage == 255) {
+                    for pixel in group.iter_mut() {
+                        pixel[..3].copy_from_slice(&opaque);
+                    }
+                    continue;
+                }
+                for (x, (&coverage, pixel)) in (first..).zip(cells.iter().zip(group)) {
                     if coverage == 0 {
                         continue;
                     }
-                    let x = (left + column as i64) as usize;
-                    let index = (y - origin_y) * image_width + (x - origin_x);
                     let mut amount = f64::from(coverage) * alpha;
                     if let Some((clip_left, clip_row)) = clip_row {
                         let through = match x.checked_sub(clip_left) {
                             Some(column) => clip_row.get(column).copied().unwrap_or(0),
                             None => 0,
                         };
-                        amount *= f64::from(through) / 255.0;
+                        amount *= FRACTIONS[usize::from(through)];
                     }
-                    let pixel = &mut data[index * 4..index * 4 + 3];
-                    if amount == 1.0 && mode == BlendMode::Normal {
-                        pixel.copy_from_slice(&opaque);
+                    // Nothing of a plain color over: mixing gives the byte beneath back.
+                    if amount == 0.0 && plain {
                         continue;
                     }
-                    for (value, component) in pixel.iter_mut().zip(color) {
-                        *value = to_byte_f64(mode.mix(f64::from(*value), component, amount));
+                    if amount == 1.0 && normal {
+                        pixel[..3].copy_from_slice(&opaque);
+                        continue;
+                    }
+                    for (value, &fraction) in pixel[..3].iter_mut().zip(&above) {
+                        *value =
+                            to_byte_f64(mode.mix(FRACTIONS[usize::from(*value)], fraction, amount));
                     }
                 }
             }
@@ -473,7 +592,11 @@ impl Canvas {
                 return;
             }
             for (value, component) in pixel.iter_mut().zip(color) {
-                *value = to_byte_f64(mode.mix(f64::from(*value), component, amount));
+                *value = to_byte_f64(mode.mix(
+                    FRACTIONS[usize::from(*value)],
+                    component / 255.0,
+                    amount,
+                ));
             }
         }
     }
@@ -504,7 +627,8 @@ impl Shape {
     /// The edges of polygons, each closed from its last point to its
     /// first. A polygon with a point that is not finite is left out.
     fn new(polygons: &[Vec<Point>]) -> Self {
-        let mut edges = Vec::new();
+        let points: usize = polygons.iter().map(Vec::len).sum();
+        let mut edges = Vec::with_capacity(points.min(EDGES_AT_FIRST));
         let (mut min_x, mut max_x) = (f64::INFINITY, f64::NEG_INFINITY);
         let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
         for polygon in polygons {
@@ -615,18 +739,41 @@ pub(crate) fn coverage(window: &Window, polygons: &[Vec<Point>], rule: FillRule)
     mask
 }
 
+/// Order crossings by position, keeping the order of those at the same
+/// place, as a stable sort does.
+fn sort_crossings(crossings: &mut [(f64, i32)]) {
+    if crossings.len() > FEW_CROSSINGS {
+        crossings.sort_by(|a, b| a.0.total_cmp(&b.0));
+        return;
+    }
+    for index in 1..crossings.len() {
+        let item = crossings[index];
+        let mut place = index;
+        while place > 0 && crossings[place - 1].0.total_cmp(&item.0).is_gt() {
+            crossings[place] = crossings[place - 1];
+            place -= 1;
+        }
+        crossings[place] = item;
+    }
+}
+
 /// Fill a mask with the coverage of the shape whose edges are given,
 /// sampling `SAMPLES` rows through each pixel row.
 fn scan(mask: &mut Mask, mut edges: Vec<Edge>, rule: FillRule) {
     edges.sort_by(|a, b| a.top.total_cmp(&b.top));
+    // Where each sample row lies below the top of its pixel row.
+    let mut offsets = [0.0_f64; SAMPLES];
+    for (sample, offset) in offsets.iter_mut().enumerate() {
+        *offset = (sample as f64 + 0.5) / SAMPLES as f64;
+    }
     let mut next = 0;
-    let mut active: Vec<&Edge> = Vec::new();
+    let mut active: Vec<&Edge> = Vec::with_capacity(edges.len().min(64));
     let mut sums = vec![0.0_f32; mask.width];
     // The runs of cells that spans reached in the row at hand.
-    let mut touched: Vec<(usize, usize)> = Vec::new();
+    let mut touched: Vec<(usize, usize)> = Vec::with_capacity(16);
     // The same, for every row, without overlaps: what painting goes by.
-    let mut runs: Vec<Run> = Vec::new();
-    let mut crossings: Vec<(f64, i32)> = Vec::new();
+    let mut runs: Vec<Run> = Vec::with_capacity(mask.height);
+    let mut crossings: Vec<(f64, i32)> = Vec::with_capacity(16);
     for row in 0..mask.height {
         let y = (mask.top + row) as f64;
         // The edges that reach into this row: those that start above its
@@ -640,8 +787,8 @@ fn scan(mask: &mut Mask, mut edges: Vec<Edge>, rule: FillRule) {
             continue;
         }
         touched.clear();
-        for sample in 0..SAMPLES {
-            let sample_y = y + (sample as f64 + 0.5) / SAMPLES as f64;
+        for &offset in &offsets {
+            let sample_y = y + offset;
             crossings.clear();
             for edge in &active {
                 if edge.top <= sample_y && sample_y < edge.bottom {
@@ -649,7 +796,7 @@ fn scan(mask: &mut Mask, mut edges: Vec<Edge>, rule: FillRule) {
                     crossings.push((x, edge.direction));
                 }
             }
-            crossings.sort_by(|a, b| a.0.total_cmp(&b.0));
+            sort_crossings(&mut crossings);
             let mut winding = 0;
             let mut start = 0.0;
             for &(x, direction) in &crossings {
@@ -671,25 +818,29 @@ fn scan(mask: &mut Mask, mut edges: Vec<Edge>, rule: FillRule) {
                 }
             }
         }
-        // Only the cells a span reached hold anything; the rest stay zero,
-        // as their sums of nothing would make them.
-        let cells = &mut mask.data[row * mask.width..(row + 1) * mask.width];
-        for &(from, to) in &touched {
-            for (cell, sum) in cells[from..to].iter_mut().zip(&mut sums[from..to]) {
-                // A cell two spans reach is done by the first: its sum is
-                // cleared, and a sum of nothing leaves the cell alone.
-                if *sum != 0.0 {
-                    *cell = to_byte(*sum / SAMPLES as f32 * 255.0);
-                    *sum = 0.0;
-                }
-            }
-        }
-        // The same cells as runs that do not overlap, for painting.
+        // The cells spans reached, as runs that do not overlap, for painting.
+        let first_run = runs.len();
         touched.sort_unstable();
         for &(from, to) in &touched {
             match runs.last_mut() {
                 Some(last) if last.0 == row && from <= last.2 => last.2 = last.2.max(to),
                 _ => runs.push((row, from, to)),
+            }
+        }
+        // Only the cells in these runs hold anything; the rest stay zero,
+        // as their sums of nothing would make them. A cell in a run whose
+        // sum is nothing gets the zero it already holds. A cell covered in
+        // every sample row holds five ones, which give 255.
+        let cells = &mut mask.data[row * mask.width..(row + 1) * mask.width];
+        for &(_, from, to) in &runs[first_run..] {
+            for (cell, sum) in cells[from..to].iter_mut().zip(&mut sums[from..to]) {
+                let value = *sum;
+                *cell = if value == SAMPLES as f32 {
+                    255
+                } else {
+                    to_byte(value / SAMPLES as f32 * 255.0)
+                };
+                *sum = 0.0;
             }
         }
     }
@@ -1088,6 +1239,82 @@ mod tests {
     }
 
     #[test]
+    fn a_color_that_is_not_a_number_paints_zero_where_the_clip_stops_it() {
+        // A calculator tint transform can give a component that is not a
+        // number. Mixing it gives 0 even for an amount of 0, so a covered
+        // cell is written although the clip lets nothing through.
+        let whole = Window::whole(20, 2);
+        let mut canvas = Canvas::new(&whole);
+        // Full coverage but for the last cell of each row, with no runs.
+        let mut data = vec![255; 20 * 2];
+        data[19] = 0;
+        data[39] = 0;
+        let mask = Mask {
+            left: 0,
+            top: 0,
+            width: 20,
+            height: 2,
+            data,
+            runs: None,
+        };
+        // The clip reaches five cells of the first row and none of the second.
+        let clip = Mask {
+            left: 3,
+            top: 0,
+            width: 5,
+            height: 1,
+            data: vec![255, 0, 128, 0, 255],
+            runs: None,
+        };
+        let color = [f64::NAN, 0.25, f64::NAN];
+        canvas.paint(&mask, color, 1.0, Some(&clip), BlendMode::Normal);
+        let image = canvas.into_image();
+        for y in 0..2 {
+            for x in 0..20 {
+                let green = match (x, y) {
+                    (3 | 7, 0) => 64,
+                    (5, 0) => 159,
+                    _ => 255,
+                };
+                let expected = if x == 19 {
+                    [255, 255, 255, 255]
+                } else {
+                    [0, green, 0, 255]
+                };
+                assert_eq!(image.pixel(x, y), Some(expected), "{x} {y}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_color_that_is_not_a_number_paints_zero_at_no_opacity() {
+        let whole = Window::whole(12, 1);
+        let shape = [square(1.0, 0.0, 9.25)];
+        // A scanned mask carries runs; the same coverage is tried without.
+        let scanned = coverage(&whole, &shape, FillRule::EvenOdd);
+        assert_eq!(scanned.data[9], 64);
+        let mut plain = scanned.clone();
+        plain.runs = None;
+        for mask in [&scanned, &plain] {
+            let mut canvas = Canvas::new(&whole);
+            canvas.paint(mask, [f64::NAN; 3], 0.0, None, BlendMode::Normal);
+            let image = canvas.into_image();
+            for x in 0..12 {
+                let expected = if (1..11).contains(&x) {
+                    [0, 0, 0, 255]
+                } else {
+                    [255, 255, 255, 255]
+                };
+                assert_eq!(image.pixel(x, 0), Some(expected), "{x}");
+            }
+            // A color that is a number leaves every pixel as it was.
+            let mut canvas = Canvas::new(&whole);
+            canvas.paint(mask, [0.2, 0.4, 0.6], 0.0, None, BlendMode::Normal);
+            assert_eq!(canvas.image.data, vec![255; 12 * 4]);
+        }
+    }
+
+    #[test]
     fn single_pixels_outside_a_canvas_are_left_out() {
         let window = Window {
             left: 2,
@@ -1105,5 +1332,24 @@ mod tests {
         assert_eq!(canvas.image.data, vec![255; 3 * 2 * 4]);
         canvas.set_rgb(4, 2, [1, 2, 3]);
         assert_eq!(canvas.into_image().pixel(2, 1), Some([1, 2, 3, 255]));
+    }
+
+    #[test]
+    fn points_that_give_no_edge_set_no_room_aside() {
+        // A long flat polygon, and a long one with a point that is not
+        // finite: neither gives an edge, however many points it holds.
+        let flat: Vec<Point> = (0..100_000).map(|x| (f64::from(x), 3.0)).collect();
+        let mut broken: Vec<Point> = (0..100_000)
+            .map(|x| (f64::from(x), f64::from(x % 7)))
+            .collect();
+        broken[50_000].1 = f64::NAN;
+        let shape = Shape::new(&[flat, broken]);
+        assert!(shape.edges.is_empty());
+        assert!(shape.edges.capacity() <= EDGES_AT_FIRST);
+        // A polygon with more edges than that still gets them all.
+        let saw: Vec<Point> = (0..1_000)
+            .map(|x| (f64::from(x), f64::from(x % 2)))
+            .collect();
+        assert_eq!(Shape::new(&[saw]).edges.len(), 1_000);
     }
 }

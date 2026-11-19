@@ -22,94 +22,220 @@ const CODE_LENGTH_ORDER: [usize; 19] = [
     16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15,
 ];
 
+/// The longest code DEFLATE allows, in bits.
+const MAX_CODE_BITS: u32 = 15;
+/// How many input bits index the lookup table of a code.
+const LOOKUP_BITS: u32 = 10;
+const LOOKUP_SIZE: usize = 1 << LOOKUP_BITS;
+/// A lookup entry keeps the code's length in this many low bits and the
+/// symbol above them.
+const ENTRY_LENGTH_BITS: u32 = 4;
+/// The most symbols a code has: the fixed literal/length code.
+const MAX_SYMBOLS: usize = 288;
+/// How many bytes one refill of the bit buffer loads away from the end of
+/// the data.
+const REFILL_BYTES: usize = 6;
+
 /// Reads bits least-significant first, as DEFLATE packs them.
+///
+/// `buffer` holds the `count` bits that were loaded and not yet used, the
+/// next one lowest; its higher bits are zero. `position` is the next byte to
+/// load, so it runs ahead of the bits already used.
 struct BitReader<'a> {
     data: &'a [u8],
     position: usize,
-    buffer: u32,
+    buffer: u64,
     count: u32,
 }
 
 impl BitReader<'_> {
-    /// Read up to 16 bits.
-    fn bits(&mut self, need: u32) -> Result<u32, FilterError> {
-        while self.count < need {
-            let byte = *self.data.get(self.position).ok_or(FilterError::Corrupt)?;
-            self.position += 1;
-            self.buffer |= u32::from(byte) << self.count;
-            self.count += 8;
+    /// Load more bytes into a buffer that holds fewer than 16 bits.
+    ///
+    /// Away from the end of the data this loads `REFILL_BYTES` bytes at once,
+    /// which always fit above 15 bits. In the last bytes it loads one byte at
+    /// a time. Afterwards the buffer holds at least 48 bits, or every bit
+    /// that is left.
+    fn refill(&mut self) {
+        debug_assert!(self.count < 16);
+        let rest = self.data.get(self.position..).unwrap_or_default();
+        if let Some(word) = rest.first_chunk::<8>() {
+            let loaded = u64::from_le_bytes(*word) & ((1 << (REFILL_BYTES * 8)) - 1);
+            self.buffer |= loaded << self.count;
+            self.position += REFILL_BYTES;
+            self.count += REFILL_BYTES as u32 * 8;
+        } else {
+            for &byte in rest {
+                if self.count > 56 {
+                    break;
+                }
+                self.buffer |= u64::from(byte) << self.count;
+                self.position += 1;
+                self.count += 8;
+            }
         }
-        let value = self.buffer & ((1 << need) - 1);
-        self.buffer >>= need;
-        self.count -= need;
+    }
+
+    /// Read up to 16 bits; fail when the data ends before them.
+    fn bits(&mut self, need: u32) -> Result<u32, FilterError> {
+        if self.count < need {
+            self.refill();
+            if self.count < need {
+                return Err(FilterError::Corrupt);
+            }
+        }
+        let value = (self.buffer & ((1 << need) - 1)) as u32;
+        self.drop_bits(need);
         Ok(value)
     }
 
-    /// Drop the unread bits of the current byte; fewer than eight are held.
+    /// Mark the lowest `used` bits of the buffer as read.
+    fn drop_bits(&mut self, used: u32) {
+        self.buffer >>= used;
+        self.count -= used;
+    }
+
+    /// Skip to the next byte boundary: drop the unread bits of the current
+    /// byte and give back the whole bytes that were loaded ahead.
     fn align(&mut self) {
+        self.position -= (self.count / 8) as usize;
         self.buffer = 0;
         self.count = 0;
     }
 }
 
-/// A canonical Huffman code: how many codes have each length, and the
-/// symbols ordered by code.
+/// A canonical Huffman code (RFC 1951, section 3.2.2).
+///
+/// The codes of one length are consecutive numbers, given to the symbols in
+/// rising order, and each length starts where the shorter ones end.
 struct Huffman {
-    counts: [u16; 16],
-    symbols: Vec<u16>,
+    /// Indexed by the next `LOOKUP_BITS` input bits: the symbol and the
+    /// length of the code those bits start with, or 0 when that code is
+    /// longer than `LOOKUP_BITS` bits or does not exist.
+    lookup: [u16; LOOKUP_SIZE],
+    /// How many codes have each length.
+    counts: [u32; 16],
+    /// The lowest code of each length.
+    first_code: [u32; 16],
+    /// Where the symbols of each length start in `symbols`.
+    first_index: [usize; 16],
+    /// The symbols in the order of their codes.
+    symbols: [u16; MAX_SYMBOLS],
 }
 
 impl Huffman {
     /// Build a code from one length (0 through 15) per symbol; 0 is unused.
+    ///
+    /// Lengths that leave codes unused are accepted. Lengths that need more
+    /// codes than there are make the stream corrupt.
     fn new(lengths: &[u8]) -> Result<Self, FilterError> {
-        let mut counts = [0u16; 16];
+        let mut counts = [0u32; 16];
         for &length in lengths {
             counts[usize::from(length)] += 1;
         }
-        counts[0] = 0;
-        let mut unused_codes = 1i32;
-        for &count in &counts[1..] {
-            unused_codes = unused_codes * 2 - i32::from(count);
-            if unused_codes < 0 {
-                return Err(FilterError::Corrupt);
-            }
+        let mut first_code = [0u32; 16];
+        let mut first_index = [0usize; 16];
+        let mut code = 0;
+        let mut index = 0;
+        // Every code of `length` bits stands for 2^(15 - length) of the
+        // 2^15 codes of full length.
+        let mut full_codes_used = 0;
+        for length in 1..16 {
+            code <<= 1;
+            first_code[length] = code;
+            first_index[length] = index;
+            code += counts[length];
+            index += counts[length] as usize;
+            full_codes_used += counts[length] << (MAX_CODE_BITS as usize - length);
         }
-        let mut offsets = [0u16; 16];
-        for length in 1..15 {
-            offsets[length + 1] = offsets[length] + counts[length];
+        if full_codes_used > 1 << MAX_CODE_BITS {
+            return Err(FilterError::Corrupt);
         }
-        let used = lengths.iter().filter(|&&length| length != 0).count();
-        let mut symbols = vec![0u16; used];
+
+        let mut symbols = [0u16; MAX_SYMBOLS];
+        let mut next_index = first_index;
         for (symbol, &length) in lengths.iter().enumerate() {
             if length != 0 {
-                let offset = &mut offsets[usize::from(length)];
-                symbols[usize::from(*offset)] = symbol as u16;
-                *offset += 1;
+                let slot = &mut next_index[usize::from(length)];
+                symbols[*slot] = symbol as u16;
+                *slot += 1;
             }
         }
-        Ok(Self { counts, symbols })
+
+        let mut lookup = [0u16; LOOKUP_SIZE];
+        for length in 1..=LOOKUP_BITS {
+            // The bits after a code can be anything, so each code fills one
+            // entry for every value of the index bits it leaves over.
+            let spare_values = 1usize << (LOOKUP_BITS - length);
+            let start = first_index[length as usize];
+            let end = start + counts[length as usize] as usize;
+            let codes = first_code[length as usize]..;
+            for (code, &symbol) in codes.zip(&symbols[start..end]) {
+                // A code arrives with its highest bit first, so in the bit
+                // buffer it reads backwards.
+                let as_read = (code.reverse_bits() >> (32 - length)) as usize;
+                let entry = symbol << ENTRY_LENGTH_BITS | length as u16;
+                for spare in 0..spare_values {
+                    lookup[spare << length | as_read] = entry;
+                }
+            }
+        }
+        Ok(Self {
+            lookup,
+            counts,
+            first_code,
+            first_index,
+            symbols,
+        })
     }
 
+    /// Read one code and return its symbol.
     fn decode(&self, bits: &mut BitReader<'_>) -> Result<u16, FilterError> {
-        let mut code = 0i32;
-        let mut first = 0i32;
-        let mut index = 0i32;
-        for &count in &self.counts[1..] {
-            code |= bits.bits(1)? as i32;
-            let count = i32::from(count);
-            if code - count < first {
-                return self
-                    .symbols
-                    .get((index + code - first) as usize)
-                    .copied()
-                    .ok_or(FilterError::Corrupt);
+        if bits.count < MAX_CODE_BITS {
+            bits.refill();
+        }
+        let entry = self.lookup[bits.buffer as usize & (LOOKUP_SIZE - 1)];
+        let length = u32::from(entry) & ((1 << ENTRY_LENGTH_BITS) - 1);
+        if length == 0 {
+            return self.decode_long(bits);
+        }
+        // At the end of the data the buffer is padded with zero bits. A code
+        // that needs some of them is cut off, not read.
+        if length > bits.count {
+            return Err(FilterError::Corrupt);
+        }
+        bits.drop_bits(length);
+        Ok(entry >> ENTRY_LENGTH_BITS)
+    }
+
+    /// Read a code that the lookup table does not hold.
+    ///
+    /// No code of up to `LOOKUP_BITS` bits starts the buffer, so this tries
+    /// each longer length in turn: the first bits belong to a code of that
+    /// length when their number is one of the `counts` codes from
+    /// `first_code` on. Lengths the data is too short for are not tried.
+    fn decode_long(&self, bits: &mut BitReader<'_>) -> Result<u16, FilterError> {
+        // The next 15 bits, with the one read first as the highest.
+        let window = u32::from(((bits.buffer & 0x7fff) as u16).reverse_bits() >> 1);
+        for length in LOOKUP_BITS + 1..=MAX_CODE_BITS.min(bits.count) {
+            let code = window >> (MAX_CODE_BITS - length);
+            let place = code.wrapping_sub(self.first_code[length as usize]);
+            if place < self.counts[length as usize] {
+                bits.drop_bits(length);
+                let index = self.first_index[length as usize] + place as usize;
+                return self.symbols.get(index).copied().ok_or(FilterError::Corrupt);
             }
-            index += count;
-            first = (first + count) << 1;
-            code <<= 1;
         }
         Err(FilterError::Corrupt)
     }
+}
+
+/// The literal/length and distance codes of a fixed block (RFC 1951,
+/// section 3.2.6).
+fn fixed_codes() -> Result<(Huffman, Huffman), FilterError> {
+    let mut lengths = [8u8; 288];
+    lengths[144..256].fill(9);
+    lengths[256..280].fill(7);
+    Ok((Huffman::new(&lengths)?, Huffman::new(&[5; 30])?))
 }
 
 /// Decompress a zlib stream into at most `max_output` bytes.
@@ -133,18 +259,22 @@ pub(crate) fn inflate_zlib(data: &[u8], max_output: usize) -> Result<Vec<u8>, Fi
         buffer: 0,
         count: 0,
     };
-    let mut output = Vec::new();
+    // Most streams grow to at least twice their size, so the output starts
+    // with that much room and skips the first rounds of growing. The room is
+    // bounded by the data, which is already in memory, and by `max_output`.
+    let mut output = Vec::with_capacity(body.len().saturating_mul(2).min(max_output));
+    // The fixed codes are built once, by the first block that uses them.
+    let mut fixed = None;
     loop {
         let last = bits.bits(1)? == 1;
         match bits.bits(2)? {
             0 => stored_block(&mut bits, &mut output, max_output)?,
             1 => {
-                let mut lengths = [8u8; 288];
-                lengths[144..256].fill(9);
-                lengths[256..280].fill(7);
-                let literals = Huffman::new(&lengths)?;
-                let distances = Huffman::new(&[5; 30])?;
-                compressed_block(&mut bits, &mut output, max_output, &literals, &distances)?;
+                let (literals, distances) = match &fixed {
+                    Some(codes) => codes,
+                    None => fixed.insert(fixed_codes()?),
+                };
+                compressed_block(&mut bits, &mut output, max_output, literals, distances)?;
             }
             2 => {
                 let (literals, distances) = dynamic_codes(&mut bits)?;
@@ -259,8 +389,16 @@ fn compressed_block(
                 if output.len() + length > max_output {
                     return Err(FilterError::LimitExceeded);
                 }
-                for _ in 0..length {
-                    output.push(output[output.len() - distance]);
+                // A match may run into the bytes it writes itself. Each
+                // round copies from the start of the match up to the end of
+                // the output, a whole number of repeats, so the pattern
+                // stays whole and the next round can copy twice as much.
+                let start = output.len() - distance;
+                let mut remaining = length;
+                while remaining > 0 {
+                    let round = remaining.min(output.len() - start);
+                    output.extend_from_within(start..start + round);
+                    remaining -= round;
                 }
             }
         }

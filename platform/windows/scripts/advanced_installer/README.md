@@ -3,7 +3,7 @@
 Run from `platform/windows/` using PowerShell 7.3 or newer:
 
 ```powershell
-$env:ADVINST_COM = 'C:\Program Files (x86)\Caphyon\Advanced Installer 24.1\bin\x86\AdvancedInstaller.com'
+$env:ADVINST_COM = 'C:\Program Files (x86)\Caphyon\Advanced Installer 24.2.1\bin\x86\AdvancedInstaller.com'
 ./scripts/nuitka/standalone.ps1
 ./scripts/advanced_installer/build_installer.ps1
 ```
@@ -19,7 +19,7 @@ the UpgradeCode, so the installer upgrades an installed Open PDF in place.
 Rebuild the payload before running the installer script; payloads that still
 hold the pre-rename `Open PDF.exe` or `open-pdf.exe` are rejected.
 
-The current x64 output is `build/installer/plain-open-pdf-1.1.0-setup.exe`. The
+The current x64 output is `build/installer/plain-open-pdf-1.1.1-setup.exe`. The
 filename follows the project version; architecture is validated from the payload
 rather than added to the name for this single-architecture download. The script
 prints the exact installer and AIP paths and reports the Authenticode status
@@ -45,7 +45,7 @@ your checkout's absolute path:
 
 ```powershell
 Set-Location $env:TEMP
-& 'C:\Projects\open_pdf\platform\windows\scripts\advanced_installer\build_installer.ps1' -OutputDirectory 'build/installer review'
+& 'C:\Projects\plain_open_pdf\platform\windows\scripts\advanced_installer\build_installer.ps1' -OutputDirectory 'build/installer review'
 ```
 
 A separate packaging directory can initialize an isolated project for an
@@ -92,7 +92,7 @@ AIP.
 Setup and Installed Apps both use `assets/plain_open_pdf.ico`, the same source
 as Nuitka. Both references are refreshed through Advanced Installer's supported
 commands after validating the existing project. This requires Advanced Installer
-23.4 or newer; the locally configured version is 24.1.
+23.4 or newer; the locally configured version is 24.2.1.
 
 The script rejects architecture and identity mismatches, duplicate payload
 entries, missing standalone dependencies, invalid MSI versions, and executable

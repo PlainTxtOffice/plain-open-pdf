@@ -1,8 +1,8 @@
 ---
-last_updated: 2026-11-17
-version: 0.4.4
+last_updated: 2026-11-19
+version: 0.4.5
 product_versions:
-  windows: "1.1.0"
+  windows: "1.1.1"
   linux: "0.1.0"
   mac_os: "0.1.0"
 ---
