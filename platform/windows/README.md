@@ -1,6 +1,6 @@
 # Plain Open PDF for Windows
 
-Developer setup for the Windows desktop viewer. You need Windows, Python 3.12
+Developer setup for the Windows desktop viewer. You need Windows, Python 3.14
 or newer, PowerShell 7.3 or newer, and the stable Rust toolchain from
 <https://rustup.rs>, which builds the app's PDF engine.
 

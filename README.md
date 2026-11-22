@@ -1,4 +1,4 @@
-<!-- last_updated: 2026-11-19 -->
+<!-- last_updated: 2026-11-22 -->
 <!-- Authoring guidance: dev-docs/specs/README_SPEC.instructions.md -->
 <!-- rumdl-disable MD033 MD041 -->
 <p align="center">
@@ -37,9 +37,7 @@ replacing a line of text, reordering pages, and saving the result back over the
 original. The Windows portable build runs from a USB stick and keeps its
 settings beside itself.
 
-Linux and macOS implementations are in development. They still read PDFs with
-PyMuPDF, so their source and builds are not published in this repository until
-they move to the Plain Open PDF engine and have been tested on those systems.
+Linux and macOS versions are planned but not released yet.
 
 ## Features
 
@@ -82,23 +80,25 @@ troubleshooting.
 
 ## Feedback
 
-Bug reports and feature requests are welcome. Use the
-[contact form](https://plaintxtoffice.com/contact/) on plaintxtoffice.com, or
-open an issue on
-[GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues). If
-Plain Open PDF showed its crash dialog, include the log file it names.
+Send bug reports and feature requests to
+[support@plaintxtoffice.com](mailto:support@plaintxtoffice.com), through the
+[contact page](https://plaintxtoffice.com/contact/), or in
+[GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues). In the
+app, `Help > Send Feedback...` drafts the email in your email app with your
+app version and Windows version filled in, or opens the contact page. If Plain
+Open PDF showed its crash dialog, include the log file it names.
 
 ## License
 
 Plain Open PDF's original code is licensed under the [MIT License](LICENSE).
 
 The Windows app reads, renders, and edits PDFs with our own MIT-licensed PDF
-engine and does not use PyMuPDF or MuPDF. The Linux and macOS implementations,
-which are not published here yet, still use PyMuPDF until they move to the
-engine, so the dependency license terms below apply to them.
+engine and does not use PyMuPDF or MuPDF. Linux and macOS versions are planned;
+if one is released before it moves to the engine, it will use PyMuPDF, and the
+dependency license terms below will apply to it.
 
 Third-party dependencies retain their own licenses. In particular,
 [PyMuPDF and MuPDF](https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright)
 are offered under AGPL or a commercial license. This repository's MIT license
-does not replace those terms; distributing the Linux or macOS builds with these
-dependencies requires compliance with their applicable licenses.
+does not replace those terms; distributing a build with these dependencies
+requires compliance with their applicable licenses.

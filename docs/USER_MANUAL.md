@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-11-19
-version: 0.4.5
+last_updated: 2026-11-22
+version: 0.4.6
 product_versions:
   windows: "1.1.1"
   linux: "0.1.0"
@@ -16,8 +16,8 @@ for opening, viewing, searching, lightly editing, printing, and saving PDF
 files, and it also accepts an optional PDF path on launch.
 
 Plain Open PDF for Windows is available as an installer and as a portable
-executable. This manual covers the Windows app. Linux and macOS versions are in
-development and have not been released.
+executable. This manual covers the Windows app. Linux and macOS versions are
+planned and have not been released.
 <!-- Verified from: README.md; platform/windows/pyproject.toml [project.scripts]; platform/windows/plain_open_pdf/main.py [main]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [MainWindow]; GitHub release v1.0.1 assets -->
 
 ## 2. System Requirements
@@ -108,9 +108,9 @@ the same release.
 
 ### Linux and macOS
 
-Linux and macOS versions are in development and have not been released. They
-will be published once they use the Plain Open PDF engine and have been tested
-on those systems. The instructions in this manual apply to Windows.
+Linux and macOS versions are planned and have not been released. They will be
+published once they use the Plain Open PDF engine and have been tested on those
+systems. The instructions in this manual apply to Windows.
 <!-- Verified from: README.md; .github-push -->
 
 ## 4. CLI Usage
@@ -278,7 +278,9 @@ rather than being stored in a separate sidecar file.
 
 ### Help
 
-Use `Help > About Plain Open PDF` to show the About dialog.
+Use `Help > About Plain Open PDF` to show the About dialog. Use
+`Help > Send Feedback...` to report a bug or request a feature; see
+[Report a Problem or Request a Feature](#report-a-problem-or-request-a-feature).
 <!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/windows/plain_open_pdf/gui/views/menus/help/about_plain_open_pdf.py [show_about_plain_open_pdf_dialog]; platform/windows/tests/test_app.py [test_file_menu_has_exit_and_help_menu_has_about] -->
 
 ## 6. Configuration
@@ -392,10 +394,15 @@ section 6 lists for each Windows download.
 
 ### Report a Problem or Request a Feature
 
-Bug reports and feature requests are welcome. Use the
-[contact form](https://plaintxtoffice.com/contact/) on plaintxtoffice.com, or
-open an issue on
+Send bug reports and feature requests to
+[support@plaintxtoffice.com](mailto:support@plaintxtoffice.com), through the
+[contact page](https://plaintxtoffice.com/contact/), or in
 [GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues).
+
+In the app, choose `Help > Send Feedback...`. `Report a Bug` and
+`Request a Feature` open a draft email to that address in your email app, with
+your app version and Windows version filled in. `Open Contact Form` opens the
+contact page in your browser. Nothing is sent unless you send it.
 
 Say which download you use (installer or portable), your Windows version, what
 you were doing, and the text of any error message. If Plain Open PDF showed its
@@ -403,7 +410,7 @@ crash dialog, the dialog names the log file that holds the details; the main log
 is `logs/Plain_Open_PDF.log` under the storage location that section 6 lists.
 Check a log for private file names before sharing it, and do not include private
 documents.
-<!-- Verified from: platform/windows/plain_open_pdf/config/crash_reporting.py [crash_message, install_crash_handlers]; platform/windows/plain_open_pdf/gui/views/dialogs/crash_dialog.py [QtCrashNotifier]; platform/windows/plain_open_pdf/config/logging/log_config.py [configure_logging]; platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu] -->
+<!-- Verified from: platform/windows/plain_open_pdf/config/crash_reporting.py [crash_message, install_crash_handlers]; platform/windows/plain_open_pdf/gui/views/dialogs/crash_dialog.py [QtCrashNotifier]; platform/windows/plain_open_pdf/config/logging/log_config.py [configure_logging]; platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/windows/plain_open_pdf/gui/views/menus/help/feedback.py [FeedbackDialog, feedback_mailto] -->
 
 ## 10. FAQ
 

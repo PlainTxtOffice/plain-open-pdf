@@ -1,12 +1,15 @@
 """Prepare runtime storage before loading desktop consumers."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from plain_open_pdf.adapters.runtime.storage import (
     adopt_legacy_folder,
     is_writable_dir,
 )
 from plain_open_pdf.config import path_handler as paths
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def prepare_storage() -> None:
