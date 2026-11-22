@@ -1,36 +1,39 @@
 ---
 last_updated: 2026-11-22
-version: 0.4.6
+version: 6.0.1
 product_versions:
   windows: "1.1.1"
   linux: "0.1.0"
   mac_os: "0.1.0"
+generated_from: "dev-docs/specs/USER_MANUAL_SPEC.instructions.md"
 ---
 
 # User Manual
 
-## 1. Overview
+## Overview
 
 Plain Open PDF is a desktop PDF viewer and light editor. It provides a window
 for opening, viewing, searching, lightly editing, printing, and saving PDF
 files, and it also accepts an optional PDF path on launch.
 
 Plain Open PDF for Windows is available as an installer and as a portable
-executable. This manual covers the Windows app. Linux and macOS versions are
-planned and have not been released.
-<!-- Verified from: README.md; platform/windows/pyproject.toml [project.scripts]; platform/windows/plain_open_pdf/main.py [main]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [MainWindow]; GitHub release v1.0.1 assets -->
+executable. Plain Open PDF for Linux (in development) and for macOS (in
+development) have the same windows, menus, and editing features, but no public
+download yet. Where they behave differently from Windows, for example in where
+they keep settings and how they remember passwords, this manual says so. Details
+for Linux and macOS can change before they are released.
+<!-- Verified from: README.md; platform/windows/pyproject.toml [project.scripts]; platform/windows/plain_open_pdf/main.py [main]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [MainWindow]; GitHub release v1.0.1 assets; platform/linux/pyproject.toml [project.version]; platform/mac_os/pyproject.toml [project.version]; platform/linux/plain_open_pdf/gui/views/menus/; platform/mac_os/plain_open_pdf/gui/views/menus/; platform/mac_os/dev-docs/PORT.md -->
 
-## 2. System Requirements
+## Installation and Setup
+
+### Check the requirements
 
 | Requirement | Verified Value | Notes |
 | --- | --- | --- |
-| Operating system | Windows x64 (64-bit) | Linux and macOS versions have not been released. |
+| Operating system | Windows x64 (64-bit) | Linux (in development) is built for Ubuntu 24.04 x86-64 and needs a graphical desktop; it is meant to run under X11 or XWayland. macOS (in development) has no public download yet. |
 | Python | Not needed for the Windows downloads | The installer and the portable executable include everything Plain Open PDF needs to run. |
-| OCR engine | Tesseract, optional | The OCR actions stay disabled unless a Tesseract backend is found on the system. |
-| Hardware requirements | Unknown. | No CPU, RAM, GPU, or display minimums are documented in the allowed sources. |
-<!-- Verified from: README.md; GitHub release v1.0.1 notes; platform/windows/scripts/nuitka/onefile.ps1; platform/windows/scripts/advanced_installer/README.md; platform/windows/plain_open_pdf/adapters/ocr/tesseract.py [create_tesseract_ocr_backend]; platform/windows/plain_open_pdf/main.py [_create_default_ocr_backend]; platform/windows/pyproject.toml -->
-
-## 3. Installation & Setup
+| OCR engine | Tesseract, optional | The OCR actions stay disabled unless a Tesseract backend is found on the system. Plain Open PDF looks for the path in the `TESSERACT_CMD` environment variable, then for `tesseract` on `PATH`. On macOS (in development) it also checks `/opt/homebrew/bin` and `/usr/local/bin`, because apps opened from Finder do not see your shell's `PATH`. |
+<!-- Verified from: platform/linux/README.md; platform/linux/plain_open_pdf/adapters/ocr/tesseract.py [_find_tesseract_executable]; platform/mac_os/plain_open_pdf/adapters/ocr/tesseract.py [_find_tesseract_executable]; README.md; GitHub release v1.0.1 notes; platform/windows/scripts/nuitka/onefile.ps1; platform/windows/scripts/advanced_installer/README.md; platform/windows/plain_open_pdf/adapters/ocr/tesseract.py [create_tesseract_ocr_backend]; platform/windows/plain_open_pdf/main.py [_create_default_ocr_backend]; platform/windows/pyproject.toml -->
 
 ### Windows Setup
 
@@ -42,7 +45,7 @@ differ in how you start it and where it keeps its settings, logs, and caches.
 | Download | What it is | Where it keeps its data |
 | --- | --- | --- |
 | `plain-open-pdf-setup.exe` | Installer. Installs Plain Open PDF for every account on the PC and adds a Start menu shortcut. | `%LOCALAPPDATA%/plain-open-pdf`, separately for each Windows account |
-| `plain-open-pdf.exe` | Portable executable. One self-contained file that runs without installation, for example from a USB stick. | A `plain-open-pdf-data` folder beside the executable |
+| `plain-open-pdf.exe` | Portable executable. One self-contained file that runs without installation, for example from a flash drive. | A `plain-open-pdf-data` folder next to the executable |
 | `SHA256SUMS.txt` | Checksums for verifying the two downloads. | None |
 
 The executables are unsigned. The release notes also state that repairing an
@@ -64,7 +67,7 @@ installation has not been tested.
 #### Run the Windows Portable Executable
 
 1. Download `plain-open-pdf.exe` into a folder you can write to, such as a
-   folder on a USB stick.
+   folder on a flash drive.
 1. Optionally check the file as described in
    [Verify a Windows Download](#verify-a-windows-download).
 1. Run `plain-open-pdf.exe`. Nothing is installed.
@@ -72,7 +75,7 @@ installation has not been tested.
    state says `Open a PDF to begin.`
 
 The portable executable creates its `plain-open-pdf-data` folder on first write,
-so a fresh folder needs no setup. If the folder beside the executable is
+so a fresh folder needs no setup. If the folder next to the executable is
 read-only, Plain Open PDF stores its data in `%LOCALAPPDATA%/plain-open-pdf`
 instead and notes that in its log. An installed copy always uses
 `%LOCALAPPDATA%/plain-open-pdf`; nothing at runtime switches it to portable
@@ -106,14 +109,16 @@ the same release.
    and do not run it.
 <!-- Verified from: GitHub release v1.0.1 assets and notes -->
 
-### Linux and macOS
+### Linux and macOS (in development)
 
-Linux and macOS versions are planned and have not been released. They will be
+The Linux and macOS versions are in development and have not been released,
+so there are no downloads or installation steps for them yet. They will be
 published once they use the Plain Open PDF engine and have been tested on those
-systems. The instructions in this manual apply to Windows.
-<!-- Verified from: README.md; .github-push -->
+systems. Until then, the Linux and macOS notes in this manual describe the apps
+as they are being built.
+<!-- Verified from: README.md; .github-push; platform/linux/README.md; platform/mac_os/dev-docs/PORT.md -->
 
-## 4. CLI Usage
+## Starting the Program
 
 Plain Open PDF accepts one optional PDF path when it starts. The examples use
 the command name `plain-open-pdf`. With a Windows download, run the executable
@@ -127,25 +132,21 @@ PowerShell in the folder that holds the portable executable.
 <!-- Verified from: platform/windows/pyproject.toml [project.scripts]; platform/windows/plain_open_pdf/main.py [build_argument_parser, main]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_build_document_view]; platform/windows/plain_open_pdf/gui/views/root_window/tabs/document_tabs.py [_open_path_in_tab] -->
 
 If Plain Open PDF is already running, launching it again activates the existing
-window and can forward the requested PDF into that running instance.
-<!-- Verified from: platform/windows/plain_open_pdf/adapters/runtime/single_instance.py [SingleInstanceCoordinator] -->
+window and can forward the requested PDF into that running instance. On Linux
+(in development), each user and each graphical session has its own running
+copy.
+<!-- Verified from: platform/windows/plain_open_pdf/adapters/runtime/single_instance.py [SingleInstanceCoordinator]; platform/linux/plain_open_pdf/adapters/runtime/desktop_session.py [instance_server_name] -->
 
-Additional CLI options beyond the optional PDF path are Unknown.
-<!-- Verified from: platform/windows/plain_open_pdf/main.py [build_argument_parser] -->
+On macOS (in development), the command accepts several PDF paths at once and
+opens each in its own tab. PDFs opened from Finder with **Open With**, or
+dropped on the Dock icon, also open as tabs in the running window.
+<!-- Verified from: platform/mac_os/plain_open_pdf/main.py [build_argument_parser, main]; platform/mac_os/plain_open_pdf/gui/application.py [MacApplication] -->
 
-## 5. GUI Usage
+Plain Open PDF has no other command-line options. `--help` only describes the
+optional PDF path, or on macOS (in development) the optional PDF paths.
+<!-- Verified from: platform/windows/plain_open_pdf/main.py [build_argument_parser]; platform/linux/plain_open_pdf/main.py [build_argument_parser]; platform/mac_os/plain_open_pdf/main.py [build_argument_parser] -->
 
-### Opening PDFs and Managing Tabs
-
-1. Use `File > Open` to choose a PDF from disk.
-1. If a PDF is already open, opening a different file creates another tab.
-1. If you try to open a PDF that is already open in another tab, Plain Open PDF
-   reuses the existing tab instead of creating a duplicate.
-1. Drag a tab along the tab bar to reorder it. Each tab keeps its own page,
-   zoom, notes, and search state.
-1. Use `File > Close Tab`, `Ctrl+W`, or the close button on the tab itself to
-   close the active tab.
-<!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_choose_pdf]; platform/windows/plain_open_pdf/gui/views/root_window/tabs/document_tabs.py [_open_path_in_tab]; platform/windows/plain_open_pdf/gui/views/root_window/tabs/document_tabs.py [_close_current_tab]; platform/windows/plain_open_pdf/gui/views/menus/file_menu.py [populate_file_menu]; platform/windows/tests/test_app.py [test_opening_second_document_creates_new_tab_and_preserves_first_state]; platform/windows/tests/test_app.py [test_opening_existing_document_path_reuses_existing_tab]; platform/windows/tests/test_app.py [test_drag_reordering_tabs_preserves_session_state] -->
+## Getting Around
 
 ### Moving Around a Document
 
@@ -167,6 +168,38 @@ shortcut in this version, so there is currently no way to trigger them from
 the UI.
 <!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_handle_page_selected]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_go_back_history]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_go_forward_history]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_set_single_page_view_enabled]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [eventFilter]; platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [add_history_actions]; platform/windows/plain_open_pdf/gui/views/menus/view_menu.py [populate_view_menu]; platform/windows/plain_open_pdf/gui/views/root_window/panes/thumbnails.py [_handle_thumbnail_selected]; platform/windows/plain_open_pdf/gui/views/root_window/navigation/page_links.py [_handle_page_link_activated]; platform/windows/plain_open_pdf/application/document/session.py [record_history_position]; platform/windows/plain_open_pdf/domains/document/pages/history.py [ScrollState]; platform/windows/tests/test_reader.py [test_navigation_history_tracks_direct_page_jumps]; platform/windows/tests/test_reader.py [test_history_restores_the_scroll_position_it_recorded]; platform/windows/tests/test_page_history.py [test_go_back_restores_the_position_not_just_the_page]; platform/windows/tests/test_app.py [test_clicking_internal_pdf_link_navigates_to_target_page]; platform/windows/tests/test_app.py [test_clicking_pdf_uri_link_opens_external_browser]; platform/windows/tests/test_app.py [test_clicking_pdf_file_link_opens_target_pdf_in_app]; platform/windows/tests/test_app.py [test_single_page_view_shows_only_current_page]; platform/windows/tests/test_app.py [test_single_page_view_uses_up_down_for_page_steps] -->
 
+### Layout and Pane Controls
+
+1. Use the `View` menu to show or hide `Bookmarks`, `Thumbnails`, `Extracted
+   Text`, or `Notes`.
+1. Use `View > Bookmarks On Left` or `View > Thumbnails On Left` to swap which
+   side pane appears on the left.
+1. Drag the splitters between panes to resize them.
+1. Pane visibility, mouse mode, and side-pane layout persist between launches.
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/view_menu.py [add_pane_actions]; platform/windows/plain_open_pdf/gui/views/menus/view_menu.py [add_side_pane_actions]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_restore_pane_visibility_settings]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_persist_pane_visibility_settings]; platform/windows/tests/test_app.py [test_view_menu_toggles_panes]; platform/windows/tests/test_app.py [test_pane_visibility_persists_between_windows]; platform/windows/tests/test_app.py [test_mouse_mode_persists_between_windows]; platform/windows/tests/test_app.py [test_side_pane_layout_persists_between_windows] -->
+
+### Help
+
+Use `Help > About Plain Open PDF` to show the About dialog. On macOS (in
+development), **About Plain Open PDF** is in the application menu, the
+**Plain Open PDF** menu, instead of **Help**. Use `Help > Send Feedback...` to
+report a bug or request a feature; see [Feedback](#feedback).
+<!-- Verified from: platform/mac_os/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/mac_os/plain_open_pdf/gui/views/menus/file_menu.py [populate_file_menu]; platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/windows/plain_open_pdf/gui/views/menus/help/about_plain_open_pdf.py [show_about_plain_open_pdf_dialog]; platform/windows/tests/test_app.py [test_file_menu_has_exit_and_help_menu_has_about] -->
+
+## Everyday Tasks
+
+### Opening PDFs and Managing Tabs
+
+1. Use `File > Open` to choose a PDF from disk.
+1. If a PDF is already open, opening a different file creates another tab.
+1. If you try to open a PDF that is already open in another tab, Plain Open PDF
+   reuses the existing tab instead of creating a duplicate.
+1. Drag a tab along the tab bar to reorder it. Each tab keeps its own page,
+   zoom, notes, and search state.
+1. Use `File > Close Tab`, `Ctrl+W`, or the close button on the tab itself to
+   close the active tab.
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_choose_pdf]; platform/windows/plain_open_pdf/gui/views/root_window/tabs/document_tabs.py [_open_path_in_tab]; platform/windows/plain_open_pdf/gui/views/root_window/tabs/document_tabs.py [_close_current_tab]; platform/windows/plain_open_pdf/gui/views/menus/file_menu.py [populate_file_menu]; platform/windows/tests/test_app.py [test_opening_second_document_creates_new_tab_and_preserves_first_state]; platform/windows/tests/test_app.py [test_opening_existing_document_path_reuses_existing_tab]; platform/windows/tests/test_app.py [test_drag_reordering_tabs_preserves_session_state] -->
+
 ### Search and Zoom Controls
 
 1. Press `Ctrl+F` to show the search bar.
@@ -178,22 +211,6 @@ the UI.
 1. Use `Ctrl` plus the mouse wheel over the document view to zoom around the
    pointer.
 <!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [add_search_actions]; platform/windows/plain_open_pdf/gui/views/menus/view_menu.py [populate_view_menu]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_focus_search_input]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_hide_search_bar]; platform/windows/plain_open_pdf/gui/views/rendering/zoom/interaction.py [_zoom_to_actual_size]; platform/windows/plain_open_pdf/gui/views/rendering/zoom/interaction.py [_zoom_fit_width]; platform/windows/plain_open_pdf/gui/views/rendering/zoom/interaction.py [_zoom_fit_page]; platform/windows/plain_open_pdf/gui/views/rendering/zoom/interaction.py [_ctrl_wheel_zoom_target]; platform/windows/tests/test_app.py [test_find_action_reveals_search_bar]; platform/windows/tests/test_app.py [test_search_updates_as_user_types]; platform/windows/tests/test_app.py [test_escape_hides_search_bar]; platform/windows/tests/test_app.py [test_hide_search_bar_clears_query_and_matches]; platform/windows/tests/test_app.py [test_ctrl_wheel_zoom_uses_smaller_increment_than_shortcut_zoom] -->
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-| --- | --- |
-| `Ctrl+F` | Show the search bar and focus the `Find` box. |
-| `Ctrl+W` | Close the active document tab. |
-| `Escape` | Hide the search bar while the `Find` box has focus. |
-| `Up` / `Down` | Step to the previous or next page while `Single Page View` is on and the document view has focus. |
-| `Ctrl` plus mouse wheel | Zoom the document view around the pointer. |
-<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [add_search_actions]; platform/windows/plain_open_pdf/gui/views/menus/file_menu.py [add_file_menu_actions]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [eventFilter]; platform/windows/plain_open_pdf/gui/views/rendering/zoom/interaction.py [_ctrl_wheel_zoom_target] -->
-
-`Ctrl+F` and `Ctrl+W` are the only assigned key sequences. Page stepping,
-zoom in and out, and history back and forward exist as actions without key
-sequences in this version.
-<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [build_toolbar]; platform/windows/tests/test_app.py [test_find_is_the_only_remaining_keyboard_shortcut] -->
 
 ### Editing Page Content
 
@@ -255,16 +272,6 @@ bookmarks and thumbnails panes, because page numbering has shifted.
    Bookmark`.
 <!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/view_menu.py [add_mouse_mode_actions]; platform/windows/plain_open_pdf/gui/views/rendering/selection.py [_show_page_text_context_menu]; platform/windows/plain_open_pdf/gui/views/rendering/selection.py [_show_page_surface_context_menu]; platform/windows/plain_open_pdf/gui/views/root_window/navigation/bookmarks.py [_show_bookmark_context_menu]; platform/windows/plain_open_pdf/gui/views/rendering/page_surface.py [createStandardContextMenu]; platform/windows/tests/test_app.py [test_text_selection_mode_updates_toolbar_indicator_and_page_overlay]; platform/windows/tests/test_app.py [test_page_overlay_context_menu_includes_selection_actions]; platform/windows/tests/test_app.py [test_bookmark_context_menu_can_rename_bookmark]; platform/windows/tests/test_app.py [test_bookmark_context_menu_can_delete_bookmark] -->
 
-### Layout and Pane Controls
-
-1. Use the `View` menu to show or hide `Bookmarks`, `Thumbnails`, `Extracted
-   Text`, or `Notes`.
-1. Use `View > Bookmarks On Left` or `View > Thumbnails On Left` to swap which
-   side pane appears on the left.
-1. Drag the splitters between panes to resize them.
-1. Pane visibility, mouse mode, and side-pane layout persist between launches.
-<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/view_menu.py [add_pane_actions]; platform/windows/plain_open_pdf/gui/views/menus/view_menu.py [add_side_pane_actions]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_restore_pane_visibility_settings]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_persist_pane_visibility_settings]; platform/windows/tests/test_app.py [test_view_menu_toggles_panes]; platform/windows/tests/test_app.py [test_pane_visibility_persists_between_windows]; platform/windows/tests/test_app.py [test_mouse_mode_persists_between_windows]; platform/windows/tests/test_app.py [test_side_pane_layout_persists_between_windows] -->
-
 ### Document Notes
 
 1. Type plain text in the `Notes` pane.
@@ -276,22 +283,17 @@ Notes participate in the normal unsaved-changes workflow and travel with the PDF
 rather than being stored in a separate sidecar file.
 <!-- Verified from: platform/windows/plain_open_pdf/application/document/session.py [notes_text]; platform/windows/plain_open_pdf/application/document/session.py [update_notes]; platform/windows/plain_open_pdf/adapters/document/engine/content/attachments.py [read_text_attachment]; platform/windows/plain_open_pdf/adapters/document/engine/content/attachments.py [write_text_attachment]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_handle_notes_changed]; platform/windows/tests/test_reader.py [test_clearing_document_notes_removes_embedded_attachment]; platform/windows/tests/test_app.py [test_notes_pane_edits_are_saved_inside_pdf] -->
 
-### Help
-
-Use `Help > About Plain Open PDF` to show the About dialog. Use
-`Help > Send Feedback...` to report a bug or request a feature; see
-[Report a Problem or Request a Feature](#report-a-problem-or-request-a-feature).
-<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/windows/plain_open_pdf/gui/views/menus/help/about_plain_open_pdf.py [show_about_plain_open_pdf_dialog]; platform/windows/tests/test_app.py [test_file_menu_has_exit_and_help_menu_has_about] -->
-
-## 6. Configuration
+## Settings and Preferences
 
 Plain Open PDF does not expose a separate in-app settings screen. On Windows,
-where it keeps runtime configuration depends on which download you use.
+where it keeps runtime configuration depends on which download you use. Linux
+and macOS (in development) use the standard per-user folders described in
+[Linux and macOS Storage](#linux-and-macos-storage).
 
 | Windows download | `data/` and `logs/` live under |
 | --- | --- |
 | Installer (`plain-open-pdf-setup.exe`) | `%LOCALAPPDATA%/plain-open-pdf` |
-| Portable (`plain-open-pdf.exe`) | `plain-open-pdf-data` beside the executable |
+| Portable (`plain-open-pdf.exe`) | `plain-open-pdf-data` next to the executable |
 | Portable, read-only folder | `%LOCALAPPDATA%/plain-open-pdf` |
 
 Builds before 2026-10-28 used `%LOCALAPPDATA%/Open PDF` and `Open PDF Data`.
@@ -305,6 +307,24 @@ folder is read-only, so it normally leaves no trace on a machine it is run
 from. Every storage directory is created on first write, so a fresh portable
 folder needs no setup.
 <!-- Verified from: platform/windows/plain_open_pdf/config/path_handler.py [DATA_DIR]; platform/windows/plain_open_pdf/config/path_handler.py [resolve_storage]; platform/windows/plain_open_pdf/config/path_handler.py [resolve_exe_dir]; platform/windows/plain_open_pdf/config/path_handler.py [resolve_user_data_dir]; platform/windows/plain_open_pdf/application/startup.py [prepare_storage]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [PersistenceMixin]; platform/windows/plain_open_pdf/adapters/persistence/desktop.py [DesktopPersistence]; platform/windows/tests/test_path_handler.py [test_storage_root_prefers_portable_over_local_app_data] -->
+
+### Linux and macOS Storage
+
+Linux and macOS (in development) have no portable mode. They keep settings, the
+OCR cache, and logs in the user's own folders:
+
+| Item | Linux (in development) | macOS (in development) |
+| --- | --- | --- |
+| Settings (`ui-state.json`) | `~/.config/plain-open-pdf/` | `~/Library/Application Support/Plain Open PDF/` |
+| OCR cache | `~/.cache/plain-open-pdf/ocr/` | `~/Library/Caches/Plain Open PDF/ocr/` |
+| Logs | `~/.local/state/plain-open-pdf/logs/` | `~/Library/Logs/Plain Open PDF/` |
+| Remembered PDF passwords | The desktop keyring (Secret Service) | macOS Keychain |
+
+On Linux, an absolute `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, or `XDG_STATE_HOME`
+replaces `~/.config`, `~/.cache`, or `~/.local/state`. Folders left by builds
+from before the app was renamed (`open-pdf` on Linux, `Open PDF` on macOS) are
+renamed on first launch. Neither app writes a password file.
+<!-- Verified from: platform/linux/plain_open_pdf/config/path_handler.py [xdg_directory, CONFIG_DIR, CACHE_DIR, ROOT_DIR, LOGS_DIR]; platform/linux/plain_open_pdf/application/startup.py [prepare_storage]; platform/linux/plain_open_pdf/gui/views/root_window/window.py [_PANE_SETTINGS_PATH, _OCR_CACHE_DIRECTORY]; platform/linux/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore]; platform/mac_os/plain_open_pdf/config/path_handler.py [storage_paths]; platform/mac_os/plain_open_pdf/application/startup.py [prepare_storage]; platform/mac_os/plain_open_pdf/gui/views/root_window/window.py [_PANE_SETTINGS_PATH, _OCR_CACHE_DIRECTORY]; platform/mac_os/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore] -->
 
 ### Saved Runtime Settings
 
@@ -321,29 +341,55 @@ folder needs no setup.
 
 ### Environment Variable Notes
 
-No user-settable environment variable is documented as part of normal usage. The
-application does set `QT_QPA_FONTDIR` internally when bundled fonts are present,
-and it reads `LOCALAPPDATA` to place per-user storage for the Windows
-downloads.
-<!-- Verified from: platform/windows/plain_open_pdf/main.py [_configure_qt_font_directory]; platform/windows/plain_open_pdf/config/path_handler.py [resolve_user_data_dir] -->
+Normal use needs no environment variables. `TESSERACT_CMD` can point
+Plain Open PDF at a Tesseract program that is not on `PATH`. On Windows and
+Linux (in development), the app sets `QT_QPA_FONTDIR` internally when bundled
+fonts are present. Windows reads `LOCALAPPDATA` to place per-user storage, and
+Linux reads the XDG variables listed in
+[Linux and macOS Storage](#linux-and-macos-storage).
+<!-- Verified from: platform/windows/plain_open_pdf/main.py [_configure_qt_font_directory]; platform/windows/plain_open_pdf/config/path_handler.py [resolve_user_data_dir]; platform/windows/plain_open_pdf/adapters/ocr/tesseract.py [_TESSERACT_COMMAND_ENV_VAR, tesseract_setup_message]; platform/linux/plain_open_pdf/main.py [_configure_qt_font_directory]; platform/linux/plain_open_pdf/config/path_handler.py [xdg_directory] -->
 
-## 7. Outputs, Exports, and Files
+## Importing and Exporting
 
-The `data/` and `logs/` paths below are relative to the storage root, which
-section 6 lists for each Windows download.
+Not Applicable.
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/file_menu.py [populate_file_menu] -->
 
-| Path or Output | Purpose | When Created or Updated |
-| --- | --- | --- |
-| `data/ui-state.json` | Stores pane visibility, mouse mode, and side-pane placement. Installed builds place this under `%LOCALAPPDATA%/plain-open-pdf`; portable builds place it beside the executable. | Updated when pane or layout settings change. |
-| `data/document-passwords.json` | Stores remembered PDF password entries as protected strings when platform support is available. Installed builds place this under `%LOCALAPPDATA%/plain-open-pdf`; portable builds place it beside the executable. | Updated after a password is remembered, moved by a rename, or removed. |
-| `data/ocr-cache/*.json` | Caches OCR text and word boxes per source document so results survive reopening. | Written after an OCR run, and read when a document is opened. |
-| `logs/Plain_Open_PDF.log` | Main rotating application log file. Installed builds place this under `%LOCALAPPDATA%/plain-open-pdf`; portable builds place it beside the executable. | Created on app startup when logging is configured. |
-| `logs/Plain_Open_PDF.1.log`, `logs/Plain_Open_PDF.2.log`, `logs/Plain_Open_PDF.3.log` | Rotated backup logs beside the main log. | Created when the main log rolls over. |
-| `path/you/opened.pdf` | The current source PDF. | Updated by `Save`, including edits that require a full in-place rewrite instead of an incremental append. |
-| `path/you/choose.pdf` | A saved copy of the active document, or the renamed document. | Created or replaced by `Save As` or `Rename File`. |
-<!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_PANE_SETTINGS_PATH]; platform/windows/plain_open_pdf/adapters/persistence/preferences.py [UiPreferencesStore]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_DOCUMENT_PASSWORDS_PATH]; platform/windows/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore]; platform/windows/plain_open_pdf/adapters/persistence/protected_data.py [protect_string]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_OCR_CACHE_DIRECTORY]; platform/windows/plain_open_pdf/adapters/ocr/cache.py [OcrCache]; platform/windows/tests/test_app.py [test_open_document_loads_cached_ocr_results_without_backend]; platform/windows/plain_open_pdf/main.py [main]; platform/windows/plain_open_pdf/config/logging/log_config.py [configure_logging]; platform/windows/plain_open_pdf/config/logging/log_config.py [_rotating_handler_factory]; platform/windows/plain_open_pdf/application/document/session.py [save]; platform/windows/plain_open_pdf/adapters/document/engine/lifecycle.py [save_document_in_place]; platform/windows/plain_open_pdf/application/document/session.py [save_as]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_save_as]; platform/windows/plain_open_pdf/application/document/rename.py [DocumentFileRenamer] -->
+## Commands and Shortcuts
 
-## 8. Feature Reference
+### Keyboard Shortcuts
+
+These shortcuts apply on Windows and Linux (in development). macOS (in
+development) uses the Mac shortcuts listed after them.
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+F` | Show the search bar and focus the `Find` box. |
+| `Ctrl+W` | Close the active document tab. |
+| `Escape` | Hide the search bar while the `Find` box has focus. |
+| `Up` / `Down` | Step to the previous or next page while `Single Page View` is on and the document view has focus. |
+| `Ctrl` plus mouse wheel | Zoom the document view around the pointer. |
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [add_search_actions]; platform/windows/plain_open_pdf/gui/views/menus/file_menu.py [add_file_menu_actions]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [eventFilter]; platform/windows/plain_open_pdf/gui/views/rendering/zoom/interaction.py [_ctrl_wheel_zoom_target] -->
+
+On Windows and Linux (in development), `Ctrl+F` and `Ctrl+W` are the only
+assigned key sequences. Page stepping, zoom in and out, and history back and
+forward exist as actions without key sequences in this version.
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [build_toolbar]; platform/windows/tests/test_app.py [test_find_is_the_only_remaining_keyboard_shortcut]; platform/linux/plain_open_pdf/gui/views/menus/toolbars.py [build_toolbar]; platform/linux/plain_open_pdf/gui/views/menus/file_menu.py [add_file_menu_actions] -->
+
+On macOS (in development), the app uses the standard Mac shortcuts:
+
+| Shortcut | Action |
+| --- | --- |
+| `Cmd+O` | Open a PDF. |
+| `Cmd+S` | Save. |
+| `Shift+Cmd+S` | Save As. |
+| `Cmd+P` | Print. |
+| `Cmd+F` | Show the search bar and focus the `Find` box. |
+| `Cmd+W` | Close the active document tab. |
+| `Cmd+Q` | Quit Plain Open PDF. |
+| `Cmd` plus mouse wheel | Zoom the document view around the pointer. |
+<!-- Verified from: platform/mac_os/plain_open_pdf/gui/views/menus/toolbars.py [build_toolbar]; platform/mac_os/plain_open_pdf/gui/views/menus/file_menu.py [populate_file_menu]; platform/mac_os/plain_open_pdf/gui/views/root_window/window.py [eventFilter]; platform/mac_os/dev-docs/PORT.md -->
+
+### Feature Reference
 
 | Feature | What It Does | How to Access It |
 | --- | --- | --- |
@@ -373,15 +419,36 @@ section 6 lists for each Windows download.
 | Position-aware page history | Records the scroll position of each visited spot so returning restores where you were, not just the page. | Maintained automatically; no UI trigger in this version. |
 | Crash reporting | Routes unhandled exceptions to a crash dialog that names the log file. | Automatic on an unhandled error |
 | About dialog | Shows the application name and a one-line description. | `Help > About Plain Open PDF` |
+| Send feedback | Drafts a bug report or feature request email, or opens the contact page. | `Help > Send Feedback...` |
 | Layout persistence | Remembers pane visibility, text-selection mode, and which side pane is on the left. | Automatic between launches |
 <!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_choose_pdf]; platform/windows/plain_open_pdf/main.py [build_argument_parser]; platform/windows/plain_open_pdf/main.py [main]; platform/windows/plain_open_pdf/adapters/runtime/single_instance.py [SingleInstanceCoordinator]; platform/windows/tests/test_main.py [test_single_instance_coordinator_forwards_pdf_path]; platform/windows/plain_open_pdf/gui/views/root_window/tabs/document_tabs.py [_open_path_in_tab]; platform/windows/tests/test_app.py [test_opening_second_document_creates_new_tab_and_preserves_first_state]; platform/windows/tests/test_app.py [test_drag_reordering_tabs_preserves_session_state]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_set_single_page_view_enabled]; platform/windows/plain_open_pdf/gui/views/root_window/document_sync.py [_build_page_placeholders]; platform/windows/tests/test_app.py [test_single_page_view_shows_only_current_page]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_build_side_panes]; platform/windows/plain_open_pdf/gui/views/root_window/panes/thumbnails.py [ThumbnailNavigationMixin]; platform/windows/tests/test_reader.py [test_outline_items_returns_pdf_bookmarks]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_handle_notes_changed]; platform/windows/plain_open_pdf/application/document/session.py [update_notes]; platform/windows/tests/test_app.py [test_notes_pane_edits_are_saved_inside_pdf]; platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [add_search_actions]; platform/windows/plain_open_pdf/gui/views/search/search_navigation.py [_run_search]; platform/windows/tests/test_app.py [test_search_updates_as_user_types]; platform/windows/plain_open_pdf/gui/views/rendering/page_surface.py [createStandardContextMenu]; platform/windows/tests/test_app.py [test_page_text_overlay_uses_word_boxes_for_selection]; platform/windows/plain_open_pdf/gui/views/root_window/navigation/bookmarks.py [_add_bookmark_from_selected_text]; platform/windows/tests/test_app.py [test_page_overlay_context_menu_includes_selection_actions]; platform/windows/plain_open_pdf/gui/views/menus/toolbars.py [add_pdf_edit_actions]; platform/windows/plain_open_pdf/gui/views/menus/edit_menu.py [populate_edit_menu]; platform/windows/plain_open_pdf/gui/views/workflows/text_editing.py [_remove_selected_text]; platform/windows/plain_open_pdf/gui/views/workflows/text_editing.py [_replace_selected_text]; platform/windows/plain_open_pdf/application/document/session.py [replace_text_span]; platform/windows/tests/test_text_editing.py [test_longer_replacement_shrinks_to_stay_on_one_line]; platform/windows/plain_open_pdf/gui/views/menus/edit_menu.py [add_page_actions]; platform/windows/plain_open_pdf/application/document/session.py [insert_blank_page]; platform/windows/tests/test_reader.py [test_inserted_page_matches_the_neighbour_page_size]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_move_current_page_by]; platform/windows/plain_open_pdf/application/document/session.py [move_page]; platform/windows/tests/test_app.py [test_thumbnail_arrow_buttons_reorder_selected_page]; platform/windows/plain_open_pdf/gui/views/root_window/navigation/bookmarks.py [_rename_bookmark_item]; platform/windows/plain_open_pdf/gui/views/root_window/navigation/bookmarks.py [_delete_bookmark_item]; platform/windows/plain_open_pdf/gui/views/root_window/panes/thumbnails.py [_rotate_thumbnail_page]; platform/windows/tests/test_app.py [test_thumbnail_context_menu_can_rotate_its_page]; platform/windows/plain_open_pdf/gui/views/root_window/panes/thumbnails.py [_delete_thumbnail_page]; platform/windows/tests/test_app.py [test_thumbnail_context_menu_can_delete_a_page]; platform/windows/plain_open_pdf/gui/views/menus/edit_menu.py [add_ocr_actions]; platform/windows/plain_open_pdf/gui/ocr/workflow.py [OcrWorkflowMixin]; platform/windows/plain_open_pdf/adapters/ocr/cache.py [OcrCache]; platform/windows/tests/test_app.py [test_ocr_page_action_updates_extracted_text_and_enables_actions]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_save]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_save_as]; platform/windows/plain_open_pdf/gui/views/workflows/file_rename.py [_rename_file]; platform/windows/plain_open_pdf/application/document/rename.py [DocumentFileRenamer]; platform/windows/tests/test_app.py [test_rename_file_replaces_old_path]; platform/windows/plain_open_pdf/gui/views/workflows/printing.py [_print_document]; platform/windows/tests/test_app.py [test_print_document_honors_selected_page_range]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_edit_document_properties]; platform/windows/plain_open_pdf/gui/views/dialogs/properties_dialog.py [DocumentPropertiesDialog]; platform/windows/plain_open_pdf/application/document/session.py [record_history_position]; platform/windows/plain_open_pdf/domains/document/pages/history.py [ScrollState]; platform/windows/tests/test_page_history.py [test_go_back_restores_the_position_not_just_the_page]; platform/windows/plain_open_pdf/config/crash_reporting.py [install_crash_handlers]; platform/windows/plain_open_pdf/gui/views/dialogs/crash_dialog.py [QtCrashNotifier]; platform/windows/tests/test_crash_reporting.py; platform/windows/plain_open_pdf/gui/views/menus/help/about_plain_open_pdf.py [show_about_plain_open_pdf_dialog]; platform/windows/tests/test_app.py [test_file_menu_has_exit_and_help_menu_has_about]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_persist_pane_visibility_settings]; platform/windows/tests/test_app.py [test_pane_visibility_persists_between_windows] -->
 
-## 9. Troubleshooting
+## Your Data Files
+
+The `data/` and `logs/` paths below are relative to the Windows storage root,
+which [Settings and Preferences](#settings-and-preferences) lists for each
+Windows download. Linux and macOS (in development) use the folders in
+[Linux and macOS Storage](#linux-and-macos-storage), with the same log file
+names and no `document-passwords.json`.
+
+| Path or Output | Purpose | When Created or Updated |
+| --- | --- | --- |
+| `data/ui-state.json` | Stores pane visibility, mouse mode, and side-pane placement. Installed builds place this under `%LOCALAPPDATA%/plain-open-pdf`; portable builds place it next to the executable. | Updated when pane or layout settings change. |
+| `data/document-passwords.json` | Stores remembered PDF password entries as protected strings when platform support is available. Installed builds place this under `%LOCALAPPDATA%/plain-open-pdf`; portable builds place it next to the executable. | Updated after a password is remembered, moved by a rename, or removed. |
+| `data/ocr-cache/*.json` | Caches OCR text and word boxes per source document so results survive reopening. | Written after an OCR run, and read when a document is opened. |
+| `logs/Plain_Open_PDF.log` | Main rotating application log file. Installed builds place this under `%LOCALAPPDATA%/plain-open-pdf`; portable builds place it next to the executable. | Created on app startup when logging is configured. |
+| `logs/Plain_Open_PDF.1.log`, `logs/Plain_Open_PDF.2.log`, `logs/Plain_Open_PDF.3.log` | Rotated backup logs beside the main log. | Created when the main log rolls over. |
+| `path/you/opened.pdf` | The current source PDF. | Updated by `Save`, including edits that require a full in-place rewrite instead of an incremental append. |
+| `path/you/choose.pdf` | A saved copy of the active document, or the renamed document. | Created or replaced by `Save As` or `Rename File`. |
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_PANE_SETTINGS_PATH]; platform/windows/plain_open_pdf/adapters/persistence/preferences.py [UiPreferencesStore]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_DOCUMENT_PASSWORDS_PATH]; platform/windows/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore]; platform/windows/plain_open_pdf/adapters/persistence/protected_data.py [protect_string]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_OCR_CACHE_DIRECTORY]; platform/windows/plain_open_pdf/adapters/ocr/cache.py [OcrCache]; platform/windows/tests/test_app.py [test_open_document_loads_cached_ocr_results_without_backend]; platform/windows/plain_open_pdf/main.py [main]; platform/windows/plain_open_pdf/config/logging/log_config.py [configure_logging]; platform/windows/plain_open_pdf/config/logging/log_config.py [_rotating_handler_factory]; platform/windows/plain_open_pdf/application/document/session.py [save]; platform/windows/plain_open_pdf/adapters/document/engine/lifecycle.py [save_document_in_place]; platform/windows/plain_open_pdf/application/document/session.py [save_as]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_save_as]; platform/windows/plain_open_pdf/application/document/rename.py [DocumentFileRenamer] -->
+
+## Troubleshooting
 
 | Symptom | Likely Cause | Resolution |
 | --- | --- | --- |
 | A PDF does not open and you are prompted for a password. | The PDF is encrypted. | Enter the correct password. If the first password is wrong, Plain Open PDF prompts again. If you cancel the prompt, the file is not opened. |
 | A remembered password stops working. | The stored password entry is invalid or outdated. | Re-enter the password when prompted. The app forgets invalid remembered passwords and stores the new one after a successful open. |
+| Linux or macOS (in development) asks for a PDF's password every time. | The desktop keyring (Linux) or Keychain (macOS) is locked, unavailable, or denied access. | Unlock the keyring, or allow Keychain access when macOS asks. Without it, enter the password each time; nothing is saved to a file instead. |
 | The OCR actions are greyed out. | The document has unsaved changes, an OCR run is already in progress, or no Tesseract backend was found. | Save the document, wait for the running OCR job, or install Tesseract. Plain Open PDF shows setup guidance when the backend is missing. |
 | `Replace Text...` reports that no editable text was found. | The edit selection does not cover a single editable text span, for example because the page region is an image. | Reselect a tighter rectangle over real text, or use `Remove Content` instead. |
 | The `Move page up` or `Move page down` button is greyed out. | The selected page is already the first or the last page of the document. | Select a different page in the thumbnails pane. |
@@ -390,35 +457,16 @@ section 6 lists for each Windows download.
 | Closing the tab or window appears to do nothing. | A close was cancelled because unsaved changes were not resolved. | In the `Unsaved Changes` prompt, choose `Save`, `Discard`, or `Cancel`. `Cancel` keeps the document open. |
 | Printing sends the wrong pages. | The print dialog honors the selected print range. | Reopen `File > Print` and confirm whether the dialog is set to all pages, the current page, or a page range. |
 | Search shows no results. | The query is not present in the current in-memory document state. | Refine the query or confirm that the text still exists after edits such as page deletion. Plain Open PDF searches the current in-memory document, not an old on-disk copy. |
-<!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_open_document]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_prompt_for_document_password]; platform/windows/tests/test_app.py [test_open_document_prompts_for_password_and_retries_until_success]; platform/windows/tests/test_app.py [test_open_document_returns_when_password_prompt_is_cancelled]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_recall_document_password]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_forget_document_password]; platform/windows/tests/test_app.py [test_invalid_remembered_password_is_forgotten_and_replaced]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_refresh_actions]; platform/windows/plain_open_pdf/main.py [_default_ocr_unavailable_message]; platform/windows/tests/test_app.py [test_ocr_action_shows_tesseract_setup_guidance_when_backend_missing]; platform/windows/plain_open_pdf/gui/views/workflows/text_editing.py [_replace_selected_text]; platform/windows/plain_open_pdf/application/document/session.py [span_for_rectangles]; platform/windows/plain_open_pdf/application/document/session.py [can_save]; platform/windows/plain_open_pdf/application/document/session.py [save]; platform/windows/plain_open_pdf/adapters/document/engine/lifecycle.py [save_document_in_place]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_save_as]; platform/windows/plain_open_pdf/gui/views/workflows/file_rename.py [_perform_file_rename]; platform/windows/plain_open_pdf/application/document/rename.py [DocumentFileRenamer]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_confirm_unsaved_changes]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [closeEvent]; platform/windows/tests/test_app.py [test_close_event_cancel_keeps_unsaved_document_open]; platform/windows/plain_open_pdf/gui/views/workflows/printing.py [_selected_print_page_indexes]; platform/windows/tests/test_app.py [test_print_document_honors_selected_page_range]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_update_search_bar_state]; platform/windows/tests/test_app.py [test_dirty_document_search_uses_in_memory_state] -->
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/window.py [_open_document]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_prompt_for_document_password]; platform/windows/tests/test_app.py [test_open_document_prompts_for_password_and_retries_until_success]; platform/windows/tests/test_app.py [test_open_document_returns_when_password_prompt_is_cancelled]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_recall_document_password]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_forget_document_password]; platform/windows/tests/test_app.py [test_invalid_remembered_password_is_forgotten_and_replaced]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_refresh_actions]; platform/windows/plain_open_pdf/main.py [_default_ocr_unavailable_message]; platform/windows/tests/test_app.py [test_ocr_action_shows_tesseract_setup_guidance_when_backend_missing]; platform/windows/plain_open_pdf/gui/views/workflows/text_editing.py [_replace_selected_text]; platform/windows/plain_open_pdf/application/document/session.py [span_for_rectangles]; platform/windows/plain_open_pdf/application/document/session.py [can_save]; platform/windows/plain_open_pdf/application/document/session.py [save]; platform/windows/plain_open_pdf/adapters/document/engine/lifecycle.py [save_document_in_place]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_save_as]; platform/windows/plain_open_pdf/gui/views/workflows/file_rename.py [_perform_file_rename]; platform/windows/plain_open_pdf/application/document/rename.py [DocumentFileRenamer]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_confirm_unsaved_changes]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [closeEvent]; platform/windows/tests/test_app.py [test_close_event_cancel_keeps_unsaved_document_open]; platform/windows/plain_open_pdf/gui/views/workflows/printing.py [_selected_print_page_indexes]; platform/windows/tests/test_app.py [test_print_document_honors_selected_page_range]; platform/windows/plain_open_pdf/gui/views/root_window/window.py [_update_search_bar_state]; platform/windows/tests/test_app.py [test_dirty_document_search_uses_in_memory_state]; platform/linux/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore]; platform/mac_os/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore, native_keychain] -->
 
-### Report a Problem or Request a Feature
-
-Send bug reports and feature requests to
-[support@plaintxtoffice.com](mailto:support@plaintxtoffice.com), through the
-[contact page](https://plaintxtoffice.com/contact/), or in
-[GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues).
-
-In the app, choose `Help > Send Feedback...`. `Report a Bug` and
-`Request a Feature` open a draft email to that address in your email app, with
-your app version and Windows version filled in. `Open Contact Form` opens the
-contact page in your browser. Nothing is sent unless you send it.
-
-Say which download you use (installer or portable), your Windows version, what
-you were doing, and the text of any error message. If Plain Open PDF showed its
-crash dialog, the dialog names the log file that holds the details; the main log
-is `logs/Plain_Open_PDF.log` under the storage location that section 6 lists.
-Check a log for private file names before sharing it, and do not include private
-documents.
-<!-- Verified from: platform/windows/plain_open_pdf/config/crash_reporting.py [crash_message, install_crash_handlers]; platform/windows/plain_open_pdf/gui/views/dialogs/crash_dialog.py [QtCrashNotifier]; platform/windows/plain_open_pdf/config/logging/log_config.py [configure_logging]; platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/windows/plain_open_pdf/gui/views/menus/help/feedback.py [FeedbackDialog, feedback_mailto] -->
-
-## 10. FAQ
+## FAQ
 
 **Can I open a PDF directly from the command line?**
 
 Yes. Use `plain-open-pdf path/to/file.pdf`. With a Windows download, use the
 executable's path, such as `./plain-open-pdf.exe path/to/file.pdf` from
-PowerShell in the folder that holds the portable executable.
+PowerShell in the folder that holds the portable executable. On macOS (in
+development), you can list several PDFs in one command.
 <!-- Verified from: platform/windows/pyproject.toml [project.scripts]; platform/windows/plain_open_pdf/main.py [build_argument_parser] -->
 
 **Can I run more than one main window at the same time?**
@@ -431,15 +479,20 @@ instance.
 **Does Plain Open PDF remember my layout choices?**
 
 Yes. Pane visibility, text-selection mode, and side-pane placement are persisted
-between launches in `data/ui-state.json`.
+between launches in `data/ui-state.json` on Windows, or in `ui-state.json` in
+the settings folder on Linux and macOS (in development).
 <!-- Verified from: platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_persist_pane_visibility_settings]; platform/windows/tests/test_app.py [test_pane_visibility_persists_between_windows]; platform/windows/tests/test_app.py [test_mouse_mode_persists_between_windows] -->
 
 **Does Plain Open PDF remember PDF passwords?**
 
-On Windows, yes. Remembered passwords are stored as protected values in
-`data/document-passwords.json`. If the platform protection helper is
-unavailable, remembered passwords are not available.
-<!-- Verified from: platform/windows/plain_open_pdf/adapters/persistence/protected_data.py [protect_string]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_remember_document_password]; platform/windows/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore] -->
+Yes, after a protected PDF opens. On Windows, remembered passwords are stored
+as protected values in `data/document-passwords.json`. If the platform
+protection helper is unavailable, remembered passwords are not available. On
+Linux (in development), they are stored in the desktop keyring through Secret
+Service, and on macOS (in development) in Keychain; neither writes a password
+file. If the keyring or Keychain cannot be used, the app asks for the password
+each time.
+<!-- Verified from: platform/windows/plain_open_pdf/adapters/persistence/protected_data.py [protect_string]; platform/windows/plain_open_pdf/gui/views/root_window/persistence.py [_remember_document_password]; platform/windows/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore]; platform/linux/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore]; platform/linux/plain_open_pdf/gui/views/root_window/persistence.py [_remember_document_password]; platform/mac_os/plain_open_pdf/adapters/persistence/passwords.py [DocumentPasswordStore] -->
 
 **Can I save over the original PDF?**
 
@@ -457,15 +510,47 @@ remembered password with it.
 
 **Do OCR results survive closing the document?**
 
-Yes. Results are cached per source file under `data/ocr-cache/` and reloaded
+Yes. Results are cached per source file under `data/ocr-cache/` on Windows, or
+in the `ocr` cache folder on Linux and macOS (in development), and reloaded
 when the document is opened again, even without an OCR backend installed.
-<!-- Verified from: platform/windows/plain_open_pdf/adapters/ocr/cache.py [OcrCache]; platform/windows/tests/test_app.py [test_open_document_loads_cached_ocr_results_without_backend] -->
+<!-- Verified from: platform/windows/plain_open_pdf/adapters/ocr/cache.py [OcrCache]; platform/windows/tests/test_app.py [test_open_document_loads_cached_ocr_results_without_backend]; platform/linux/plain_open_pdf/gui/views/root_window/window.py [_OCR_CACHE_DIRECTORY]; platform/mac_os/plain_open_pdf/gui/views/root_window/window.py [_OCR_CACHE_DIRECTORY] -->
 
-## 11. Glossary
+## Feedback
+
+Send bug reports and feature requests to
+[support@plaintxtoffice.com](mailto:support@plaintxtoffice.com), through the
+[contact page](https://plaintxtoffice.com/contact/), or in
+[GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues).
+
+| Platform | How to open feedback |
+| --- | --- |
+| Windows | Choose `Help > Send Feedback...`. |
+| Linux (in development) | Choose `Help > Send Feedback...`. |
+| macOS (in development) | Choose `Help > Send Feedback...`. |
+<!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/linux/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/mac_os/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; https://github.com/PlainTxtOffice/plain-open-pdf [has_issues, license MIT] -->
+
+In each app, choose `Help > Send Feedback...`. `Report a Bug` and
+`Request a Feature` open a draft email to that address in your email app, with
+your app version and system version filled in: the Windows version, the Linux
+distribution and kernel version on Linux (in development), or the macOS version
+on macOS (in development). `Open Contact Form` opens the contact page in your
+browser. Nothing is sent unless you send it.
+
+Say which platform you use and, on Windows, which download (installer or
+portable), what you were doing, and the text of any error message. If Plain Open
+PDF showed its crash dialog, the dialog names the log file that holds the
+details; the main log is `Plain_Open_PDF.log` in the logs folder that
+[Settings and Preferences](#settings-and-preferences) and
+[Linux and macOS Storage](#linux-and-macos-storage) list.
+Check a log for private file names before sharing it, and do not include private
+documents.
+<!-- Verified from: platform/windows/plain_open_pdf/config/crash_reporting.py [crash_message, install_crash_handlers]; platform/windows/plain_open_pdf/gui/views/dialogs/crash_dialog.py [QtCrashNotifier]; platform/windows/plain_open_pdf/config/logging/log_config.py [configure_logging]; platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/windows/plain_open_pdf/gui/views/menus/help/feedback.py [FeedbackDialog, feedback_mailto]; platform/linux/plain_open_pdf/gui/views/menus/help/feedback.py [linux_os_name]; platform/mac_os/plain_open_pdf/gui/views/menus/help/feedback.py [macos_version]; platform/linux/plain_open_pdf/config/logging/log_config.py [application_log_path]; platform/mac_os/plain_open_pdf/config/logging/log_config.py [application_log_path] -->
+
+## Glossary
 
 | Term | Definition |
 | --- | --- |
-| Menu bar | The top application menu strip, holding the `File`, `Edit`, `View`, and `Help` menus. |
+| Menu bar | The top application menu strip, holding the `File`, `Edit`, `View`, and `Help` menus. On macOS (in development), it is the menu bar at the top of the screen, where the **Plain Open PDF** menu holds About and Quit. |
 | Tool bar | The strip below the menu bar with the page selector, `Edit PDF`, `Fit Page`, the search bar, and the mouse-mode indicator. |
 | Page thumbnails | The pane that lists page previews for direct navigation, with the page move buttons above it. |
 | Document view | The central scrolling PDF surface. |

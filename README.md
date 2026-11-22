@@ -8,8 +8,8 @@
 <h1 align="center">Plain Open PDF</h1>
 
 <p align="center">
-  An open source, lightweight desktop PDF viewer with light editing, for people
-  who want to read, search, and touch up PDFs without a heavyweight suite.
+  An open source, lightweight PDF viewer with light editing, for people who
+  want to read, search, and touch up PDFs without a heavyweight suite.
 </p>
 
 <p align="center">
@@ -29,13 +29,13 @@
 
 ## About
 
-Plain Open PDF is a no-frills desktop reader for PDF files on Windows.
+Plain Open PDF is a lightweight reader for PDF files on Windows.
 Open a document from your file manager or the command line and start reading
 right away: pages render as you reach them instead of waiting for the whole
-file. Light editing is there when you need it, such as redacting a region,
-replacing a line of text, reordering pages, and saving the result back over the
-original. The Windows portable build runs from a USB stick and keeps its
-settings beside itself.
+file. Light editing is intuitive: redact a region, replace a line of text,
+reorder pages, and save the result back over the original. The portable build
+can be run from a flash drive and keeps its settings in a `plain-open-pdf-data`
+folder next to the program.
 
 Linux and macOS versions are planned but not released yet.
 
