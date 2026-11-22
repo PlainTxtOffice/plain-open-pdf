@@ -60,7 +60,7 @@ function Get-BuildConfiguration {
     if (-not $OutputDirectory) { $OutputDirectory = "build/$Variant" }
     $icon = Join-Path $ProjectRoot 'assets/plain_open_pdf.ico'
     if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
-        throw "Missing icon: $icon. Generate it from assets/icons/plain_open_pdf.svg at the repository root."
+        throw "Missing icon: $icon. Generate it from assets/icons/icon.svg at the repository root."
     }
     # The DejaVu fonts are git-ignored downloads; bundle them only when present.
     $fonts = @(Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'assets/fonts') -Filter '*.ttf' -File -ErrorAction SilentlyContinue)

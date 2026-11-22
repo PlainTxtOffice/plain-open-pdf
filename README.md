@@ -2,7 +2,7 @@
 <!-- Authoring guidance: dev-docs/specs/README_SPEC.instructions.md -->
 <!-- rumdl-disable MD033 MD041 -->
 <p align="center">
-  <img src="assets/icons/plain_open_pdf.svg" alt="Plain Open PDF logo: a white printer on a red tile, printing a page with a peeled corner" width="96">
+  <img src="assets/icons/icon-github-readme.svg" alt="Plain Open PDF logo: a white printer on a red tile, printing a page with a peeled corner" width="96">
 </p>
 
 <h1 align="center">Plain Open PDF</h1>
