@@ -68,7 +68,8 @@ Linux and macOS versions are planned but not released yet.
 The Windows builds are for x64 (64-bit). Checksums and release notes are on the
 [latest release](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest).
 
-The executables are unsigned. To check a download, compare the output of
+From version 1.1.2, the executables are signed by Plain Text Office LLC. To
+check a download another way, compare the output of
 `Get-FileHash -Algorithm SHA256 PATH_TO_DOWNLOAD` with
 [SHA256SUMS.txt](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest/download/SHA256SUMS.txt).
 No Linux or macOS download has been released.

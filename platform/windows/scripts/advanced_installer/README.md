@@ -19,7 +19,7 @@ the UpgradeCode, so the installer upgrades an installed Open PDF in place.
 Rebuild the payload before running the installer script; payloads that still
 hold the pre-rename `Open PDF.exe` or `open-pdf.exe` are rejected.
 
-The current x64 output is `build/installer/plain-open-pdf-1.1.1-setup.exe`. The
+The current x64 output is `build/installer/plain-open-pdf-1.1.2-setup.exe`. The
 filename follows the project version; architecture is validated from the payload
 rather than added to the name for this single-architecture download. The script
 prints the exact installer and AIP paths and reports the Authenticode status
@@ -100,10 +100,16 @@ versions that differ from `pyproject.toml`. Console debug and portable builds
 are rejected. The existing release validator also rejects runtime data and
 private inputs. Keep the complete `.dist` folder intact and smoke-test a copy.
 
-Installer signing is configured separately on the persistent AIP's Digital
-Signature page. No installer signing certificate is configured initially.
-Do not store certificate passwords or keys in the repository. A successful
-unsigned build is not evidence of signing or distribution readiness.
+Installer signing is configured on the persistent AIP's Digital Signature
+page: signing is enabled with the Plain Text Office LLC certificate from the
+Current User certificate store and the `http://ts.ssl.com` timestamp service.
+Advanced Installer signs the package and the setup file on every build, so a
+build needs the certificate loaded on the build machine and a network
+connection, and uses several metered cloud signings. The AIP records the
+certificate's thumbprint; select the new certificate on that page after a
+renewal. Do not store certificate passwords or keys in the repository. The
+script prints the installer's Authenticode status last; anything other than
+`Valid` means the installer is not signed and not ready for distribution.
 
 `build_installer.ps1` contains all installer-specific metadata, executable,
 AIP validation, and build functions. No installer helper scripts are needed.

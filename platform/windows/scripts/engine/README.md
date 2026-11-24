@@ -16,6 +16,10 @@ after changing the engine:
 - `-PythonExecutable <path>` selects the interpreter; it defaults to
   `.venv/Scripts/python.exe`. Relative paths resolve from `platform/windows/`.
 - `-Offline` builds from crates Cargo has already downloaded.
+- `-CertificateThumbprint <thumbprint>` signs the installed module with that
+  certificate from the Windows certificate store, using `signtool.exe` from the
+  Windows SDK. The release build scripts pass it for signed builds. Leave it
+  out for development builds, because each signing is metered.
 
 The module is built against the selected interpreter through `PYO3_PYTHON`.
 After switching between Python 3.14 or earlier and 3.15 or later at the same

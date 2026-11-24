@@ -302,7 +302,15 @@ if ($UseCurrentDefaultPaths) {
 }
 $Commercial = Test-CommercialNuitka $config.Python
 # Build the PDF engine into the build interpreter, where Nuitka finds it.
-& (Join-Path $PSScriptRoot '../engine/build.ps1') -PythonExecutable $config.Python
+$engineArguments = @{ PythonExecutable = $config.Python }
+$engineThumbprint = [Environment]::GetEnvironmentVariable('WINDOWS_CERTIFICATE_SHA1', 'User')
+if (-not $engineThumbprint) { $engineThumbprint = $env:WINDOWS_CERTIFICATE_SHA1 }
+# Nuitka signs only the executable, so a signed release also signs the engine
+# module it bundles.
+if ($Commercial -and $engineThumbprint -and -not $Console) {
+    $engineArguments.CertificateThumbprint = $engineThumbprint
+}
+& (Join-Path $PSScriptRoot '../engine/build.ps1') @engineArguments
 Show-PersistedData $config -ResetRuntimeDefaults:$ResetRuntimeDefaults
 $consoleMode = if ($Console) { 'force' } else { 'disable' }
 $compilerArguments = Get-CompilerArguments $config $Compiler $MsvcVersion

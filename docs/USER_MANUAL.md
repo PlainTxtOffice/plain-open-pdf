@@ -1,8 +1,8 @@
 ---
 last_updated: 2026-11-24
-version: 6.0.2
+version: 6.0.3
 product_versions:
-  windows: "1.1.1"
+  windows: "1.1.2"
   linux: "0.1.0"
   mac_os: "0.1.0"
 generated_from: "dev-docs/specs/USER_MANUAL_SPEC.instructions.md"
@@ -48,8 +48,10 @@ differ in how you start it and where it keeps its settings, logs, and caches.
 | `plain-open-pdf.exe` | Portable executable. One self-contained file that runs without installation, for example from a flash drive. | A `plain-open-pdf-data` folder next to the executable |
 | `SHA256SUMS.txt` | Checksums for verifying the two downloads. | None |
 
-The executables are unsigned. The release notes also state that repairing an
-installation has not been tested.
+From version 1.1.2, the executables are signed by Plain Text Office LLC; earlier
+versions are unsigned. Windows can still show a SmartScreen prompt for a newly
+released download. The release notes also state that repairing an installation
+has not been tested.
 <!-- Verified from: GitHub release v1.0.1 assets and notes; platform/windows/scripts/advanced_installer/README.md; platform/windows/scripts/advanced_installer/build_installer.ps1; platform/windows/scripts/nuitka/onefile.ps1; platform/windows/plain_open_pdf/config/path_handler.py [resolve_storage, resolve_user_data_dir] -->
 
 #### Install with the Windows Installer
@@ -89,9 +91,12 @@ and Plain Open PDF simply prompts again.
 
 #### Verify a Windows Download
 
-Because the executables are unsigned, you can check that a download matches the
-published release by comparing its SHA-256 checksum with `SHA256SUMS.txt` from
-the same release.
+From version 1.1.2, the executables carry a digital signature. To see it,
+right-click the download in File Explorer, choose **Properties**, and open the
+**Digital Signatures** tab; the signer is Plain Text Office LLC.
+
+You can also check that a download matches the published release by comparing
+its SHA-256 checksum with `SHA256SUMS.txt` from the same release.
 
 1. Download `SHA256SUMS.txt` from the
    [latest release](https://github.com/PlainTxtOffice/plain-open-pdf/releases/latest).

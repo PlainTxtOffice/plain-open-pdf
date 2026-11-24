@@ -6,7 +6,11 @@
 param(
     [string]$PythonExecutable = '.venv/Scripts/python.exe',
     # Build without network access, from crates already downloaded.
-    [switch]$Offline
+    [switch]$Offline,
+    # Sign the installed module with this certificate from the Windows
+    # certificate store. The release build scripts pass it; leave it unset for
+    # development builds, because each signing is metered.
+    [string]$CertificateThumbprint
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,3 +43,29 @@ $installed = Join-Path $sitePackages 'plain_open_pdf_engine.pyd'
 Copy-Item -LiteralPath $built -Destination $installed -Force
 & $python -c 'import plain_open_pdf_engine; print("Installed", plain_open_pdf_engine.__file__)'
 if ($LASTEXITCODE -ne 0) { throw "The installed engine module does not import: $installed" }
+
+if ($CertificateThumbprint) {
+    # Nuitka signs only the executable it creates, so sign the module here,
+    # before Nuitka bundles it into the standalone folder or the onefile.
+    $signTool = Get-Command 'signtool.exe' -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty Source
+    if (-not $signTool) {
+        $kits = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Windows Kits\10\bin'
+        $signTool = Get-ChildItem -Path (Join-Path $kits '*\x64\signtool.exe') -ErrorAction SilentlyContinue |
+            Sort-Object { [version]$_.Directory.Parent.Name } -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+    }
+    if (-not $signTool) {
+        throw 'signtool.exe was not found. Install the Windows SDK to sign the engine module.'
+    }
+    $signOutput = & $signTool sign /sha1 $CertificateThumbprint /fd sha256 `
+        /tr http://ts.ssl.com /td sha256 $installed 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Signing the engine module failed: $($signOutput -join ' ')"
+    }
+    $signature = Get-AuthenticodeSignature -LiteralPath $installed
+    if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate) {
+        throw "The engine module's signature is not valid or has no timestamp: $installed"
+    }
+    Write-Host "Signed $installed"
+}

@@ -2,9 +2,9 @@
 
 | Interface | Format | Script | Entrypoint and output | Download filename | Release status |
 | --- | --- | --- | --- | --- | --- |
-| GUI | Portable | `onefile.ps1` | `plain_open_pdf/main.py` → `build/onefile/plain-open-pdf-1.1.1-portable.exe` | `plain-open-pdf-1.1.1-portable.exe` | Build target; validate before publishing |
+| GUI | Portable | `onefile.ps1` | `plain_open_pdf/main.py` → `build/onefile/plain-open-pdf-1.1.2-portable.exe` | `plain-open-pdf-1.1.2-portable.exe` | Build target; validate before publishing |
 | GUI | Standalone | `standalone.ps1` | `plain_open_pdf/main.py` → `build/standalone/main.dist/plain-open-pdf.exe` | None; installer input | Build target |
-| GUI | Installer | `../advanced_installer/build_installer.ps1` | Release `main.dist` → `build/installer/plain-open-pdf-1.1.1-setup.exe` | `plain-open-pdf-1.1.1-setup.exe` | Build target; installation testing required |
+| GUI | Installer | `../advanced_installer/build_installer.ps1` | Release `main.dist` → `build/installer/plain-open-pdf-1.1.2-setup.exe` | `plain-open-pdf-1.1.2-setup.exe` | Build target; installation testing required |
 | GUI | Debug | `standalone-debug.ps1` | `plain_open_pdf/main.py` → `build/standalone-debug/main.dist/plain-open-pdf-debug.exe` | None | Local troubleshooting only |
 
 Plain Open PDF ships one desktop interface; there is no separate CLI download.
@@ -90,6 +90,15 @@ per Windows account, using a code-signing certificate already installed there:
 The scripts read the user setting directly, with an inherited process value as
 a fallback. Without a configured certificate or Commercial Nuitka, release
 builds remain unsigned and print a warning. They never enable deep DLL signing.
+
+Nuitka signs only the executable it creates. A signed release build therefore
+also signs the PDF engine module, `plain_open_pdf_engine.pyd`, with the same
+certificate: `standalone.ps1` and `onefile.ps1` pass the thumbprint to
+`scripts/engine/build.ps1`, which signs the module before Nuitka bundles it.
+The debug build and development runs of the engine script leave it unsigned.
+The other bundled DLLs keep their own publishers' signatures. A signed release
+build uses two metered cloud signings, one for the module and one for the
+executable.
 
 The Windows build reads PDFs with the project's own MIT-licensed engine and
 bundles no PyMuPDF or MuPDF files; see the repository README's license section.

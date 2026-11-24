@@ -8,6 +8,7 @@ from packaging_support import (
     POWERSHELL,
     arguments,
     engine_build_interpreter,
+    engine_signing_thumbprint,
     make_project,
     run_script,
 )
@@ -43,6 +44,13 @@ def test_build_variant_flags(tmp_path, variant, commercial):
     assert ("--enable-plugin=data-hiding" in args) == bool(commercial)
     assert ("--enable-plugin=anti-debugger" in args) == bool(commercial and not debug)
     assert ("--enable-plugin=signtool" in args) == bool(commercial and not debug)
+    # Nuitka signs only the executable, so the same builds sign the engine
+    # module with the certificate the executable is signed with.
+    signed_with = [
+        a.split("=", 1)[1] for a in args
+        if a.startswith("--windows-certificate-sha1=")
+    ]
+    assert [engine_signing_thumbprint(project)] == (signed_with or [""])
     assert not any("traceback-encryption" in a or "--embed-data" in a for a in args)
     assert any(a.startswith("--report=") for a in args)
     assert result.stdout.count("Building Plain Open PDF:") == 1

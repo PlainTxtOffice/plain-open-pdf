@@ -308,7 +308,15 @@ if ($LASTEXITCODE -ne 0) {
 
 $Commercial = Test-CommercialNuitka $config.Python
 # Build the PDF engine into the build interpreter, where Nuitka finds it.
-& (Join-Path $PSScriptRoot '../engine/build.ps1') -PythonExecutable $config.Python
+$engineArguments = @{ PythonExecutable = $config.Python }
+$engineThumbprint = [Environment]::GetEnvironmentVariable('WINDOWS_CERTIFICATE_SHA1', 'User')
+if (-not $engineThumbprint) { $engineThumbprint = $env:WINDOWS_CERTIFICATE_SHA1 }
+# Nuitka signs only the executable, so a signed release also signs the engine
+# module it bundles. The onefile payload cannot be signed after packing.
+if ($Commercial -and $engineThumbprint) {
+    $engineArguments.CertificateThumbprint = $engineThumbprint
+}
+& (Join-Path $PSScriptRoot '../engine/build.ps1') @engineArguments
 Show-PersistedData $config -Portable -ResetRuntimeDefaults:$ResetRuntimeDefaults
 if (-not $NoStopRunningOutput) {
     Stop-RunningOutput (Join-Path $config.Output $config.Filename)

@@ -45,10 +45,13 @@ if args[:1] == ["-c"] and args[1] in ("import compression.zstd", "import zstanda
 sys.exit(subprocess.run([sys.executable, *args]).returncode)
 '''
 
-# Stands in for scripts/engine/build.ps1, which runs cargo: it records the
-# interpreter it was asked to build the engine for.
-ENGINE_BUILD = '''param([string]$PythonExecutable, [switch]$Offline)
+# Stands in for scripts/engine/build.ps1, which runs cargo and signtool: it
+# records the interpreter it was asked to build the engine for and the
+# certificate it was asked to sign the module with.
+ENGINE_BUILD = '''param([string]$PythonExecutable, [switch]$Offline,
+    [string]$CertificateThumbprint)
 Set-Content -LiteralPath $env:TEST_ENGINE_BUILD -Value $PythonExecutable -Encoding utf8
+Set-Content -LiteralPath $env:TEST_ENGINE_SIGN -Value $CertificateThumbprint -Encoding utf8
 '''
 
 
@@ -83,6 +86,7 @@ def run_script(project, shim, name, *args, **environment):
         USERNAME="test-private-user",
         TEST_BUILD_ARGS=str(project / "build-arguments.json"),
         TEST_ENGINE_BUILD=str(project / "engine-build.txt"),
+        TEST_ENGINE_SIGN=str(project / "engine-sign.txt"),
         WINDOWS_CERTIFICATE_SHA1="A" * 40,
     )
     env.update(environment)
@@ -104,6 +108,14 @@ def run_script(project, shim, name, *args, **environment):
 def engine_build_interpreter(project):
     """Return the interpreter the engine was built for, or None."""
     path = project / "engine-build.txt"
+    if not path.exists():
+        return None
+    return path.read_text("utf-8-sig").strip()
+
+
+def engine_signing_thumbprint(project):
+    """Return the certificate the engine build was asked to sign with."""
+    path = project / "engine-sign.txt"
     if not path.exists():
         return None
     return path.read_text("utf-8-sig").strip()
