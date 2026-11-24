@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-11-22
-version: 6.0.1
+last_updated: 2026-11-24
+version: 6.0.2
 product_versions:
   windows: "1.1.1"
   linux: "0.1.0"
@@ -518,7 +518,7 @@ when the document is opened again, even without an OCR backend installed.
 ## Feedback
 
 Send bug reports and feature requests to
-[support@plaintxtoffice.com](mailto:support@plaintxtoffice.com), through the
+[feedback@plaintxtoffice.com](mailto:feedback@plaintxtoffice.com), through the
 [contact page](https://plaintxtoffice.com/contact/), or in
 [GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues).
 
@@ -530,11 +530,12 @@ Send bug reports and feature requests to
 <!-- Verified from: platform/windows/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/linux/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; platform/mac_os/plain_open_pdf/gui/views/menus/help/help_menu.py [populate_help_menu]; https://github.com/PlainTxtOffice/plain-open-pdf [has_issues, license MIT] -->
 
 In each app, choose `Help > Send Feedback...`. `Report a Bug` and
-`Request a Feature` open a draft email to that address in your email app, with
-your app version and system version filled in: the Windows version, the Linux
-distribution and kernel version on Linux (in development), or the macOS version
-on macOS (in development). `Open Contact Form` opens the contact page in your
-browser. Nothing is sent unless you send it.
+`Request a Feature` open a draft email to that address
+(<support@plaintxtoffice.com> in Windows 1.1.1 and earlier) in your email app,
+with your app version and system version filled in: the Windows version, the
+Linux distribution and kernel version on Linux (in development), or the macOS
+version on macOS (in development). `Open Contact Form` opens the contact page in
+your browser. Nothing is sent unless you send it.
 
 Say which platform you use and, on Windows, which download (installer or
 portable), what you were doing, and the text of any error message. If Plain Open

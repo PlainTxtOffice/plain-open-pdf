@@ -81,12 +81,13 @@ troubleshooting.
 ## Feedback
 
 Send bug reports and feature requests to
-[support@plaintxtoffice.com](mailto:support@plaintxtoffice.com), through the
+[feedback@plaintxtoffice.com](mailto:feedback@plaintxtoffice.com), through the
 [contact page](https://plaintxtoffice.com/contact/), or in
 [GitHub Issues](https://github.com/PlainTxtOffice/plain-open-pdf/issues). In the
-app, `Help > Send Feedback...` drafts the email in your email app with your
-app version and Windows version filled in, or opens the contact page. If Plain
-Open PDF showed its crash dialog, include the log file it names.
+app, `Help > Send Feedback...` drafts the email in your email app (to
+<support@plaintxtoffice.com> in version 1.1.1 and earlier) with your app version
+and Windows version filled in, or opens the contact page. If Plain Open PDF
+showed its crash dialog, include the log file it names.
 
 ## License
 
